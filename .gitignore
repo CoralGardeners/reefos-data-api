@@ -160,6 +160,6 @@ cython_debug/
 #.idea/
 
 # exclude credentials
-./*.json
+*.json
 # exclude package
 reefos_data_api.egg-info/
