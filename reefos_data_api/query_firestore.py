@@ -6,7 +6,7 @@ from google.api_core import retry as retries
 
 from google.cloud.firestore_v1.base_query import FieldFilter
 from google.cloud.firestore_v1 import aggregation
-import reefos_data_api.functions.firestore_util as fsu
+import reefos_data_api.firestore_util as fsu
 
 from reefos_data_api.firestore_constants import EventType as et
 from reefos_data_api.firestore_constants import SiteType as st
