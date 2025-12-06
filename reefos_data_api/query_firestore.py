@@ -83,6 +83,8 @@ class QueryFirestore:
 
     @staticmethod
     def get_docs(query, fields=None):
+#        return [(doc.id, doc.to_dict() if fields is None else {field: doc.get(field) for field in fields})
+#                for doc in query.where(filter=FieldFilter("metadata.deleted", "==", False)).stream()]
         return [(doc.id, doc.to_dict() if fields is None else {field: doc.get(field) for field in fields})
                 for doc in query.where(filter=FieldFilter("metadata.deleted", "==", False)).stream(retry=custom_retry)]
 
@@ -205,8 +207,11 @@ class QueryFirestore:
 #        query = self.db.collection("_fragments")
 #        return self.add_location_filter(query, loc)
 
-    def query_events(self, location, filter_fields={}):
+    def query_events(self, location, event_type=[], filter_fields={}):
         query = self.db.collection("_events")
+        if len(event_type) > 0:
+            op = 'in' if type(event_type) is list else "=="
+            query = query.where(filter=FieldFilter('eventType', op, event_type))
         query = self.add_filter(query, filter_fields)
         return self.add_location_filter(query, location)
 
@@ -221,7 +226,11 @@ class QueryFirestore:
 
 # %%
 if __name__ == "__main__":
-    qf = QueryFirestore()
+    project_id = "restoration-ios"
+    creds = "restoration-ios-firebase-adminsdk-wg0a4-a59664d92f.json"
+    #project_id = "restoration-app---dev-6df41"
+    #creds = "restoration-app---dev-6df41-firebase-adminsdk-fbsvc-fd29c504a1.json"
+    qf = QueryFirestore(project_id=project_id, creds=creds)
 
     orgs = qf.get_orgs()
     

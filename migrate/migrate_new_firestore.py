@@ -2,23 +2,23 @@
 from collections import defaultdict
 import pandas as pd
 
-from firestore_constants import EventType as et
-from firestore_constants import SiteType as st
-from firestore_constants import FragmentState as fs
+from reefos_data_api.firestore_constants import EventType as et
+from reefos_data_api.firestore_constants import SiteType as st
+from reefos_data_api.firestore_constants import FragmentState as fs
 import migrate.current_firestore as cf
 import reefos_analysis.dbutils.firestore_util as fsu
-import query_firestore as qq
-import compute_statistics as cs
+import reefos_data_api.query_firestore as qq
+import reefos_data_api.compute_statistics as cs
 
-to_production = False
+to_production = True
 limit = None  # set to None to write all, 0 to write none, or a value > 0 to write some
 
-old_firestore = '../restoration-ios-firebase-adminsdk-wg0a4-a59664d92f.json'
+old_firestore = 'restoration-ios-firebase-adminsdk-wg0a4-18ff398018.json'
 if to_production:
-    new_firestore = '../restoration-ios-firebase-adminsdk-wg0a4-a59664d92f.json'
+    new_firestore = 'restoration-ios-firebase-adminsdk-wg0a4-18ff398018.json'
     new_project_id="restoration-ios"
 else:
-    new_firestore = "../restoration-app---dev-6df41-firebase-adminsdk-fbsvc-37ee88f0d4.json"
+    new_firestore = "restoration-app---dev-6df41-firebase-adminsdk-fbsvc-fd29c504a1.json"
     new_project_id="restoration-app---dev-6df41"
 
 # %%

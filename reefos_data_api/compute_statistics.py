@@ -14,11 +14,11 @@ from reefos_data_api.firestore_constants import FragmentState as fs
 
 def get_location_monitoring_data(qf, loc):
     print(f"Getting raw frag_monitor events for {loc}")
-    events = qf.get_docs(qf.query_events(loc, {'eventType': et.frag_monitor.value}))
+    events = qf.get_docs(qf.query_events(loc, event_type=et.frag_monitor.value))
     print(f"Got {len(events)}")
     print("Get logs")
-    full_logs = qf.get_docs(qf.query_events(loc, {'eventType': et.full_nursery_monitoring.value}))
-    bleach_logs = qf.get_docs(qf.query_events(loc, {'eventType': et.bleaching_nursery_monitoring.value}))
+    full_logs = qf.get_docs(qf.query_events(loc, event_type=et.full_nursery_monitoring.value))
+    bleach_logs = qf.get_docs(qf.query_events(loc, event_type=et.bleaching_nursery_monitoring.value))
     return events, full_logs + bleach_logs
 
 
@@ -393,14 +393,14 @@ def get_stats_of_location(qf, loc):
         all_stats.extend(current_stats)
         by_year_stats = get_stats_by_year(loc, events_df, frags)
         all_stats.extend(by_year_stats)
-        op_stats = get_outplanted_stats(loc, outplanted_frags)
-        all_stats.extend(op_stats)
-        frag_stats = get_fragment_stats(qf, loc, in_nursery_frags, 'nurseryID', 'fragment_donor')
-        all_stats.extend(frag_stats)
-        op_frag_stats = get_fragment_stats(qf, loc, outplanted_frags, 'outplantID', 'outplant_fragment_donor')
-        all_stats.extend(op_frag_stats)
-        donor_stats = get_donor_stats(qf, loc, in_nursery_frags)
-        all_stats.extend(donor_stats)
+    op_stats = get_outplanted_stats(loc, outplanted_frags)
+    all_stats.extend(op_stats)
+    frag_stats = get_fragment_stats(qf, loc, in_nursery_frags, 'nurseryID', 'fragment_donor')
+    all_stats.extend(frag_stats)
+    op_frag_stats = get_fragment_stats(qf, loc, outplanted_frags, 'outplantID', 'outplant_fragment_donor')
+    all_stats.extend(op_frag_stats)
+    donor_stats = get_donor_stats(qf, loc, in_nursery_frags)
+    all_stats.extend(donor_stats)
     return all_stats
 
 
@@ -666,7 +666,12 @@ def compute_statistics(qf, save=False, limit=None):
 
 # %%
 if __name__ == "__main__":
-    creds = '../restoration-ios-firebase-adminsdk-wg0a4-a59664d92f.json'
-    devcreds = '../restoration-app---dev-6df41-firebase-adminsdk-fbsvc-37ee88f0d4.json'
-    qf = qq.QueryFirestore(creds=devcreds)
+    to_production = True
+    if to_production:
+        creds = 'restoration-ios-firebase-adminsdk-wg0a4-18ff398018.json'
+        project_id="restoration-ios"
+    else:
+        creds = "restoration-app---dev-6df41-firebase-adminsdk-fbsvc-fd29c504a1.json"
+        project_id="restoration-app---dev-6df41"
+    qf = qq.QueryFirestore(project_id=project_id, creds=creds)
     compute_statistics(qf, save=True, limit=None)

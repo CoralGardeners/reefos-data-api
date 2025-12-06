@@ -7,9 +7,9 @@ import json
 import numpy as np
 
 # %%
-creds = 'restoration-ios-firebase-adminsdk-wg0a4-a59664d92f.json'
+creds = 'restoration-ios-firebase-adminsdk-wg0a4-18ff398018.json'
 proj = "restoration-ios"
-devcreds = "restoration-app---dev-6df41-firebase-adminsdk-fbsvc-37ee88f0d4.json"
+devcreds = "restoration-app---dev-6df41-firebase-adminsdk-fbsvc-fd29c504a1.json"
 devproj = "restoration-app---dev-6df41"
 qf = qq.QueryFirestore(project_id=devproj, creds=devcreds)
 
