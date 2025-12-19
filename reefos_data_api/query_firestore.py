@@ -94,10 +94,10 @@ class QueryFirestore:
                 query.where(filter=FieldFilter("metadata.deleted", "==", False)).stream(retry=custom_retry)}
 
     @staticmethod
-    def add_filter(query, filter_fields):
+    def add_filter(query, filter_fields, op=None):
         for field, val in filter_fields.items():
-            op = 'in' if type(val) is list else "=="
-            query = query.where(filter=FieldFilter(field, op, val))
+            current_op = op if op is not None else ('in' if type(val) is list else "==")
+            query = query.where(filter=FieldFilter(field, current_op, val))
         return query
 
     @staticmethod
@@ -121,6 +121,9 @@ class QueryFirestore:
     @staticmethod
     def get_count(query):
         return query.count().get()[0][0].value
+    
+    def get_document(self, collection, doc_id):
+        return self.db.collection(collection).document(doc_id).to_dict()
 
     def get_organisms(self, org_type=None):
         coll = self.db.collection("_organisms")
@@ -142,7 +145,10 @@ class QueryFirestore:
 
     def get_org_by_name(self, name):
         coll = self.db.collection("_orgs").where(filter=FieldFilter("name", "==", name))
-        return self.get_docs(coll)
+        org = self.get_docs(coll)
+        if len(org) == 0:
+            return None
+        return org[0]
 
     def get_org_by_id(self, org_id):
         doc = self.db.collection("_orgs").document(org_id)
@@ -172,6 +178,9 @@ class QueryFirestore:
 
     def query_nurseries(self, location):
         return self.query_sites(location, st.nursery.value)
+
+    def query_structures(self, location):
+        return self.query_sites(location, st.structure.value)
 
     def query_donorcolonies(self, location):
         return self.query_sites(location, st.donorcolony.value)
@@ -224,6 +233,24 @@ class QueryFirestore:
         return self.add_location_filter(query, location)
         
 
+class UpdateFirestore:
+    def __init__(self, qf):
+        self.app = qf.app
+        self.db = qf.db
+    
+    def delete_document(self, collection, doc_id, debug=False):
+        if debug:
+            print(f"Would delete {collection}/{doc_id}")
+        else:
+            self.db.collection(collection).document(doc_id).delete()
+        
+    def update_document(self, collection, doc_id, new_values, merge=False, debug=False):
+        if debug:
+            print(f"Would update {collection}/{doc_id}")
+        else:
+            self.db.collection(collection).document(doc_id).set(new_values, merge=merge)
+        
+
 # %%
 if __name__ == "__main__":
     project_id = "restoration-ios"
@@ -235,7 +262,7 @@ if __name__ == "__main__":
     orgs = qf.get_orgs()
     
     cg = qf.get_org_by_name('Coral Gardeners')
-    cg_org_id = cg[0][0]
+    cg_org_id = cg[0]
     
     branches = qf.get_branches(cg_org_id)
     fp_branch = qf.get_branch_by_name(cg_org_id, 'French Polynesia')
@@ -288,7 +315,7 @@ if __name__ == "__main__":
     
     def get_monitoring_data(location, monitoring_type):
         print(f"Getting {monitoring_type} events")
-        events = qf.get_docs(qf.query_events(location, {'eventType': monitoring_type}), fields=['name'])
+        events = qf.get_docs(qf.query_events(location, event_type=monitoring_type), fields=['name'])
         # get aggregate restuls for each monitoring event
         results = []
         for event in events:

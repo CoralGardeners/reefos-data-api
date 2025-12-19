@@ -1,4 +1,4 @@
-# Run in reefod-data-api/functions
+# Run in reefod-data-api
 from collections import defaultdict
 import pandas as pd
 
@@ -415,13 +415,15 @@ def get_structures(doc_grps):
         loc = {'orgID': path[1],
                'branchID': path[3],
                'nurseryID': path[5],
-               '_0': doc['position']}
+#               '_0': str(doc['position'])
+              }
         structure = {
             'siteType': st.structure.value,
             'location': loc,
             'siteData': {
                 'child_count': doc['substructureCount'],
                 'structuretype': doc['type'],
+                'structure': doc['position']
                 }
             }
         set_metadata(structure, createdAt=doc.get('created'))
@@ -626,6 +628,7 @@ def get_events_of_fragment(frag_doc, location, locations, nm_events, frag_id):
                 if loc['nurseryID'] == log_nurseryID:
 #                    new_loc['restoSiteID'] = loc.get('restoSiteID')
                     new_loc['nurseryID'] = loc['nurseryID']
+                    new_loc['structureID'] = loc['structureID']
                     new_loc['_0'] = loc['structure']
                     new_loc['_1'] = loc['substructure']
                     new_loc['_2'] = loc['position']
@@ -747,6 +750,7 @@ def get_fragments(doc_grps, nurseries, outplants, outplant_cells, nm_events):
 #            nursery = nurseries.get(loc['nurseryID'])
 #            location['restoSiteID'] = rmap.get(nursery['name']) if nursery is not None else None
             location['nurseryID'] = loc['nurseryID']
+            location['structureID'] = loc['structureID']
             location['_0'] = loc['structure']
             location['_1'] = loc['substructure']
             location['_2'] = loc['position']
@@ -761,6 +765,7 @@ def get_fragments(doc_grps, nurseries, outplants, outplant_cells, nm_events):
                 location['outplantCellID'] = op_cell_id
                 if loc is not None:
                     location['nurseryID'] = loc['nurseryID']
+                    location['structureID'] = loc['structureID']
                     location['_0'] = loc['structure']
                     location['_1'] = loc['substructure']
                     location['_2'] = loc['position']
@@ -1034,7 +1039,7 @@ def set_opcell_monitoring_events(documents, outplant_cell_ids):
 
 
 def set_fragment_ids(documents, org_ids, branch_ids, nursery_ids, outplant_ids,
-                     organism_ids, mc_ids, op_cell_ids):
+                     organism_ids, mc_ids, op_cell_ids, structure_ids):
     for doc_id, doc in documents.items():
         # set ids in location
         org_id = doc['location']['orgID']
@@ -1050,6 +1055,9 @@ def set_fragment_ids(documents, org_ids, branch_ids, nursery_ids, outplant_ids,
         if 'outplantID' in doc['location']:
             outplant_id = doc['location']['outplantID']
             doc['location']['outplantID'] = outplant_ids.get(outplant_id)
+        if 'structureID' in doc['location']:
+            structure_id = doc['location']['structureID']
+            doc['location']['structureID'] = structure_ids.get(structure_id)
         # set organism id
         doc['organismID'] = organism_ids[doc['organismID']]
         # set donor colony id
@@ -1057,7 +1065,7 @@ def set_fragment_ids(documents, org_ids, branch_ids, nursery_ids, outplant_ids,
 
 
 def set_fragment_event_ids(documents, org_ids, branch_ids, nursery_ids,
-                           outplant_ids, fragment_ids, nm_event_ids):
+                           outplant_ids, fragment_ids, nm_event_ids, structure_ids):
     for doc_id, doc in documents.items():
         # set fragmentID
         doc['fragmentID'] = fragment_ids[doc['fragmentID']]
@@ -1073,6 +1081,9 @@ def set_fragment_event_ids(documents, org_ids, branch_ids, nursery_ids,
         if 'outplantID' in doc['location']:
             outplant_id = doc['location']['outplantID']
             doc['location']['outplantID'] = outplant_ids.get(outplant_id)
+        if 'structureID' in doc['location']:
+            structure_id = doc['location']['structureID']
+            doc['location']['structureID'] = structure_ids.get(structure_id)
         if 'eventData' in doc:
             event_data = doc['eventData']
             if 'logID' in event_data:
@@ -1220,15 +1231,15 @@ print("Writing fragments")
 # set doc ids in fragments
 set_fragment_ids(fragments, org_id_map, branch_id_map, nursery_id_map,
                  outplant_id_map, organism_id_map,
-                 mc_id_map, op_cell_id_map)
+                 mc_id_map, op_cell_id_map, structure_id_map)
 # add fragments to firestore
 fragment_id_map = add_collection(db, "fragments", fragments)
 
 print("Writing fragment events")
 # set doc ids in fragment events
 set_fragment_event_ids(frag_events, org_id_map, branch_id_map, nursery_id_map,
-                       outplant_id_map,
-                       fragment_id_map, nm_event_id_map)
+                       outplant_id_map, fragment_id_map,
+                       nm_event_id_map, structure_id_map)
 set_document_metadata(frag_events, user_id_map)
 # add fragment events to firestore
 frag_event_id_map = add_collection(db, "events", frag_events)

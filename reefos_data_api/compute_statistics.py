@@ -80,7 +80,7 @@ def aggregate_monitorings(qf, id_attrs, events, logs, fragids):
     by_nursery['agg_type'] = 'by_nursery'
 
     # aggregate by monitoring, org, nursery and structure 0
-    grp = events_df.groupby(id_attrs + ['logID', 'nurseryID', '_0'])
+    grp = events_df.groupby(id_attrs + ['logID', 'nurseryID', 'structureID'])
     by_L1 = grp[attrs].agg(['mean', 'count'])
     by_L1['monitoredAt'] = grp['createdAt'].max()
     by_L1.columns = ['_'.join(col).strip('_') for col in by_L1.columns.values]
@@ -96,7 +96,7 @@ def aggregate_monitorings(qf, id_attrs, events, logs, fragids):
     by_spp['agg_type'] = 'by_species'
     by_spp['taxon'] = by_spp.organismID.map(taxon_map)
 
-    re_order = (id_attrs + ['logID', 'nurseryID', '_0', 'taxon', 'monitoredAt', 'agg_type'] +
+    re_order = (id_attrs + ['logID', 'nurseryID', 'structureID', 'taxon', 'monitoredAt', 'agg_type'] +
                 [attr + '_mean' for attr in attrs] +
                 [attr + '_count' for attr in attrs])
     agg_df = pd.concat([by_nursery, by_L1, by_spp])
@@ -176,8 +176,8 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     all_frags = fdf.drop(columns=['outplantID', 'outplantCellID', 'completedAt', 'metadata'])\
         .rename(columns={'doc_id': 'fragmentID'})
     keep = ['createdAt', 'organismID', 'fragmentID', 'orgID', 'branchID',
-            'nurseryID', '_0', '_1', '_2', 'attr', 'value']
-    cols = ['orgID', 'branchID', 'nurseryID', '_0', '_1', '_2']
+            'nurseryID', 'structureID', '_0', '_1', '_2', 'attr', 'value']
+    cols = ['orgID', 'branchID', 'nurseryID', 'structureID', '_0', '_1', '_2']
     frag_df = pd.concat([ldf[keep] for ldf in latest.values()])
     latest_times = frag_df.groupby('fragmentID')['createdAt'].max().astype(str)
     frag_df = frag_df.pivot(columns='attr', values='value', index=['fragmentID', 'organismID'] + cols).reset_index()
@@ -234,18 +234,18 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     nursery_stats = make_into_stats_list(nursery_stats, ['orgID', 'branchID', 'nurseryID'], 'nursery_stats')
 
     # get stats by structure
-    structure_stats = [ldf.groupby(['nurseryID', '_0'])[attr]
+    structure_stats = [ldf.groupby(['nurseryID', 'structureID'])[attr]
                        .agg(['mean', 'count'])
                        .rename(columns={'mean': attr, 'count': attr + '_count'})
                        for attr, ldf in latest.items()]
-    structure_stats.append(fdf.groupby(['nurseryID', '_0'])['organismID'].nunique().rename('n_species'))
-    structure_stats.append(fdf.groupby(['nurseryID', '_0'])['doc_id'].count().rename('n_fragments'))
+    structure_stats.append(fdf.groupby(['nurseryID', 'structureID'])['organismID'].nunique().rename('n_species'))
+    structure_stats.append(fdf.groupby(['nurseryID', 'structureID'])['doc_id'].count().rename('n_fragments'))
     structure_stats = pd.concat(structure_stats, axis=1).reset_index()
     structure_stats['orgID'] = loc['orgID']
     structure_stats['branchID'] = loc['branchID']
     structure_stats['createdAt'] = edf.createdAt.max()
     structure_stats = make_into_stats_list(structure_stats,
-                                           ['orgID', 'branchID', 'nurseryID', '_0'],
+                                           ['orgID', 'branchID', 'nurseryID', 'structureID'],
                                            'structure_stats')
 
     # get stats by species and nursery
@@ -387,7 +387,7 @@ def get_stats_of_location(qf, loc):
     in_nursery_frags = [(nid, info) for (nid, info) in frags if info['state'] == fs.in_nursery.value]
     outplanted_frags = [(nid, info) for (nid, info) in frags if info['state'] == fs.outplanted.value]
     agg_df, events_df = get_location_monitoring_event_info(qf, loc, frags)
-    all_stats = make_into_stats_list(agg_df, loc_attrs + ['nurseryID', '_0'], None)
+    all_stats = make_into_stats_list(agg_df, loc_attrs + ['nurseryID', 'structureID'], None)
     if len(events_df) > 0:
         current_stats = get_current_stats(qf, loc, events_df, in_nursery_frags, outplanted_frags)
         all_stats.extend(current_stats)
