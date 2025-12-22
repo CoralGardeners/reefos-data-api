@@ -11,6 +11,8 @@ from reefos_data_api.firestore_constants import FragmentState as fs
 # %%
 # get the event data of an org
 
+fp = 'French Polynesia'
+fp_pre_database = {'outplanted': 96961, 'seeded': 17116}
 
 def get_location_monitoring_data(qf, loc):
     print(f"Getting raw frag_monitor events for {loc}")
@@ -570,6 +572,12 @@ def summary_branch_stats(qf, loc, branch_stats):
     stats = [(idx, doc) for idx, doc in enumerate(branch_stats)]
     stats_df = qf.documents_to_dataframe(stats, ['data', 'location'])
     bdf = stats_df[stats_df.stat_type == 'branch_stats'].dropna(axis=1, how='all')
+    if _branch['name'] == fp:
+        op_offset = fp_pre_database['outplanted']
+        seeded_offset = fp_pre_database['seeded']
+    else:
+        op_offset = 0
+        seeded_offset = 0
     # make the block of global data
     branch_data = {
         "branchID": loc['branchID'],
@@ -582,7 +590,7 @@ def summary_branch_stats(qf, loc, branch_stats):
         'Controls': qf.get_count(qf.query_controlsites(loc)),
         'Fragments': int(bdf.n_fragments.sum()),
         'Fraction Alive': qq.wtd_mean(bdf, 'alive', 'alive_count'),
-        'Outplanted': bdf.n_outplanted.sum(),
+        'Outplanted': bdf.n_outplanted.sum() + op_offset,
         'YTD Seeded': bdf.ytd_seeded.sum(),
         'YTD Outplanted': bdf.ytd_outplanted.sum()
     }

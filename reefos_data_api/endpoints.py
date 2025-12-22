@@ -7,6 +7,17 @@ import reefos_data_api.query_firestore as qq
 from reefos_data_api.firestore_constants import EventType as et
 
 
+fp = 'French Polynesia'
+fp_pre_database = {'outplanted': 96961, 'seeded': 17116}
+# data from impact reports, outplanted is cumulative, includes some frags in the database
+moorea_historic_data = [
+    {'Branch': fp, 'year': 2020, 'outplanted': 15000, 'seeded': 3598},
+    {'Branch': fp, 'year': 2021, 'outplanted': 15755, 'seeded': 8945},
+    {'Branch': fp, 'year': 2022, 'outplanted': 30980, 'seeded': 9450},
+    {'Branch': fp, 'year': 2023, 'outplanted': 100870, 'seeded': 26159},
+    ]
+
+
 def api_help():
     strs = [
         "Hello data seeker",
@@ -120,7 +131,7 @@ def get_orgbyname(qf, name):
     res = qf.get_org_by_name(name)
     if len(res) == 0:
         return None
-    return res[0][0]
+    return res[0]
 
 
 def org_exists(qf, org_id):
@@ -149,7 +160,7 @@ def global_stats(qf, org_id):
     return global_data
 
 
-def by_year_stats(qf, org_id):
+def by_year_stats(qf, org_id):    
     loc = {'orgID': org_id}
     # get the by year stats from FireStore
     stats = qf.get_docs(qf.query_statistics(loc, 'by_year'))
@@ -161,11 +172,31 @@ def by_year_stats(qf, org_id):
     outplanted_df = df[df.state == 'outplanted'].set_index(['year', 'branchID'])
     by_year_df['outplanted'] = outplanted_df['count']
     by_year_df['outplanted'] = by_year_df['outplanted'].fillna(0)
-    by_year_df = by_year_df.reset_index()
+    by_year_df = by_year_df.reset_index().drop('state', axis=1).sort_values('year')
+    # outplanted is cumulative sum
+    by_year_df['outplanted'] = by_year_df.groupby('branchID')['outplanted'].cumsum()
+    by_year_df.set_index('year', inplace=True)
     # get the branch names
     branches = qf.get_branches(org_id)
     branch_names = {br[0]: br[1]['name'] for br in branches}
     by_year_df['Branch'] = by_year_df.branchID.map(branch_names)
+    # add historic data to 'French Polynesia' branch
+    if (by_year_df['Branch'] == fp).sum() > 0:
+        # get branch id of fp branch
+        fp_id = None
+        for bid, bname in branch_names.items():
+            if bname == fp:
+                fp_id = bid
+                break
+        # make dataframe of historic data
+        mby_df = by_year_df[by_year_df.branchID == fp_id]
+        mdf = pd.DataFrame(moorea_historic_data).set_index('year')
+        mdf['branchID'] = fp_id
+        mdf['n_species'] = mby_df.n_species
+        offset = mdf.loc[2023, ['outplanted', 'seeded']] - mby_df.loc[2023, ['outplanted', 'seeded']]
+        by_year_df.loc[by_year_df.index > 2023, 'outplanted'] += offset.loc['outplanted']
+        by_year_df.loc[by_year_df.index > 2023, 'seeded'] += offset.loc['seeded']
+        by_year_df = pd.concat([mdf, by_year_df.loc[by_year_df.index > 2023]]).reset_index()
     return by_year_df.to_dict('records')
 
 

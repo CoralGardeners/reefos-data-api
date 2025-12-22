@@ -11,14 +11,13 @@ creds = 'restoration-ios-firebase-adminsdk-wg0a4-18ff398018.json'
 proj = "restoration-ios"
 devcreds = "restoration-app---dev-6df41-firebase-adminsdk-fbsvc-fd29c504a1.json"
 devproj = "restoration-app---dev-6df41"
-qf = qq.QueryFirestore(project_id=devproj, creds=devcreds)
+qf = qq.QueryFirestore(project_id=proj, creds=creds)
 
 orgs = qf.get_orgs()
 
 cg_org_id = ep.get_orgbyname(qf, 'Coral Gardeners')
 #cg_org_id = cg[0][0]
 
-# %%
 branches = qf.get_branches(cg_org_id)
 branches.sort(key=lambda x: x[1]['name'])
 
