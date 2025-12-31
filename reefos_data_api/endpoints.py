@@ -376,7 +376,7 @@ def full_nursery_stats(qf, nursery_id):
     all_stats = {
         'summary': stats,
         'species_summary': spp_df[keep + ['taxon']].to_dict('records'),
-        'structures': struct_df[keep + ['_0']].to_dict('records'),
+        'structures': struct_df[keep + ['structureID']].to_dict('records'),
         'history': hdf.to_dict(),
         'spp_history': shdf.to_dict('records')
         }
