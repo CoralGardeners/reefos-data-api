@@ -43,14 +43,27 @@ class SiteType(Enum):
     restosite = "restoSite"
 
 
+# dead or removed frags are set to completed when the nursery is outplanted
 class FragmentState(Enum):
     in_nursery = "inNursery"
     outplanted = "outplanted"
     refragmented = "refragmented"
     removed = "removed"
+    completed = "completed"
     unknown = "unknown"
 
 
 class AggregationType(Enum):
     by_nursery = "by_nursery"
     by_structure = "by_L1"
+
+class CellType(Enum):
+    bommie = "bommie"
+    region = "region"
+
+class NurseryState(Enum):
+    active = "active"
+    seeding = "seeding"
+    growing = "growing"
+    outplanting = "outplanting"
+    retired = "retired"

@@ -249,6 +249,13 @@ class UpdateFirestore:
             print(f"Would update {collection}/{doc_id}")
         else:
             self.db.collection(collection).document(doc_id).set(new_values, merge=merge)
+            
+    def add_document(self, collection, values, debug=True):
+        if debug:
+            return f"debug{collection}_{np.random.randint(1000000)}"
+        else:
+            _, doc_ref = self.db.collection(collection).add(values)
+            return doc_ref.id
         
 
 # %%
