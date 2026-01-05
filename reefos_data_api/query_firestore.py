@@ -53,6 +53,9 @@ class QueryFirestore:
     #        parts = doc.reference.path.split('/')
     #        return {'doc_type': parts[-2], 'doc_id': parts[-1], 'doc': doc}
     #    return [get_doc_info(doc) for doc in query.stream(retry=custom_retry)]
+    @staticmethod
+    def get_bucket(bucket_name):
+        return fsu.get_bucket(bucket_name)
 
     @staticmethod
     def download_blob(org, branch, fname, dest_file):

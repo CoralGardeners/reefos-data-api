@@ -31,14 +31,15 @@ def cleanup_firestore():
         app = None
 
 
-def get_blob(org, branch, fname):
+def get_bucket(bucket_name):
+    return storage.bucket(bucket_name)
+
+def get_blob(org, branch, fname, bucket_name):
     if fname[0] == '/':
         fname = fname[1:]
     source_blob = f"{org}/{branch}/{fname}"
-    bucket = storage.bucket()
+    bucket = get_bucket(bucket_name)
     return bucket.blob(source_blob)
-
-
 
 
 if __name__ == '__main__':
