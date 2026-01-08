@@ -160,7 +160,12 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     # add fragment specie id
     edf['organismID'] = edf.fragmentID.map(fragspp)
     # turn location into a tuple to groupby
-    edf['loc'] = edf.location.apply(lambda x: tuple((k, v) for k, v in x.items()))
+    def get_vals(x):
+        vals = list((k, v) for k, v in x.items())
+        vals.sort(key=lambda y: y[0])
+        return tuple(vals)
+    
+    edf['loc'] = edf.location.apply(get_vals)
     edf.sort_values('createdAt', inplace=True)
 
     attrs = ['health', 'bleach', 'EVI', 'alive', 'images']
@@ -180,7 +185,7 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     keep = ['createdAt', 'organismID', 'fragmentID', 'orgID', 'branchID',
             'nurseryID', 'structureID', '_0', '_1', '_2', 'attr', 'value']
     cols = ['orgID', 'branchID', 'nurseryID', 'structureID', '_0', '_1', '_2']
-    frag_df = pd.concat([ldf[keep] for ldf in latest.values()])
+    frag_df = pd.concat([ldf[keep] for ldf in latest.values()]).reset_index(drop=True)
     latest_times = frag_df.groupby('fragmentID')['createdAt'].max().astype(str)
     frag_df = frag_df.pivot(columns='attr', values='value', index=['fragmentID', 'organismID'] + cols).reset_index()
     frag_df = all_frags.merge(frag_df[['fragmentID', 'EVI', 'alive', 'bleach', 'health', 'images']],

@@ -1,0 +1,1 @@
+Database Migration1) Run the main migration script migratenew_firestore.py2) Then run the scripts in post_migrate folgerThese clean up various data errors across the branches3) Finally re-run the stats on the finalized data run_stats.py4) Move all the old files in Google Cloud andset new paths in the Firestore databy running migrate_files

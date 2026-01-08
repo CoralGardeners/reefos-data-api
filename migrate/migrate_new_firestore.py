@@ -1055,6 +1055,9 @@ def set_fragment_ids(documents, org_ids, branch_ids, nursery_ids, outplant_ids,
         if 'outplantID' in doc['location']:
             outplant_id = doc['location']['outplantID']
             doc['location']['outplantID'] = outplant_ids.get(outplant_id)
+        if 'outplantCellID' in doc['location']:
+            outplant_cell_id = doc['location']['outplantCellID']
+            doc['location']['outplantCellID'] = op_cell_ids.get(outplant_cell_id)
         if 'structureID' in doc['location']:
             structure_id = doc['location']['structureID']
             doc['location']['structureID'] = structure_ids.get(structure_id)
@@ -1065,7 +1068,7 @@ def set_fragment_ids(documents, org_ids, branch_ids, nursery_ids, outplant_ids,
 
 
 def set_fragment_event_ids(documents, org_ids, branch_ids, nursery_ids,
-                           outplant_ids, fragment_ids, nm_event_ids, structure_ids):
+                           outplant_ids, op_cell_ids, fragment_ids, nm_event_ids, structure_ids):
     for doc_id, doc in documents.items():
         # set fragmentID
         doc['fragmentID'] = fragment_ids[doc['fragmentID']]
@@ -1081,6 +1084,9 @@ def set_fragment_event_ids(documents, org_ids, branch_ids, nursery_ids,
         if 'outplantID' in doc['location']:
             outplant_id = doc['location']['outplantID']
             doc['location']['outplantID'] = outplant_ids.get(outplant_id)
+        if 'outplantCellID' in doc['location']:
+            outplant_cell_id = doc['location']['outplantCellID']
+            doc['location']['outplantCellID'] = op_cell_ids.get(outplant_cell_id)
         if 'structureID' in doc['location']:
             structure_id = doc['location']['structureID']
             doc['location']['structureID'] = structure_ids.get(structure_id)
@@ -1238,7 +1244,7 @@ fragment_id_map = add_collection(db, "fragments", fragments)
 print("Writing fragment events")
 # set doc ids in fragment events
 set_fragment_event_ids(frag_events, org_id_map, branch_id_map, nursery_id_map,
-                       outplant_id_map, fragment_id_map,
+                       outplant_id_map, op_cell_id_map, fragment_id_map,
                        nm_event_id_map, structure_id_map)
 set_document_metadata(frag_events, user_id_map)
 # add fragment events to firestore
