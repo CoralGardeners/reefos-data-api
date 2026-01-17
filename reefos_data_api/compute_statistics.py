@@ -161,7 +161,7 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     edf['organismID'] = edf.fragmentID.map(fragspp)
     # turn location into a tuple to groupby
     def get_vals(x):
-        vals = list((k, v) for k, v in x.items())
+        vals = list((k, v) for k, v in x.items() if v is not None)
         vals.sort(key=lambda y: y[0])
         return tuple(vals)
     

@@ -126,7 +126,7 @@ class QueryFirestore:
         return query.count().get()[0][0].value
     
     def get_document(self, collection, doc_id):
-        return self.db.collection(collection).document(doc_id).to_dict()
+        return self.db.collection(collection).document(doc_id).get().to_dict()
 
     def get_organisms(self, org_type=None):
         coll = self.db.collection("_organisms")

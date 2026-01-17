@@ -54,22 +54,16 @@ def delete_nursery(qf, nursery_id, structures, fragments, debug):
 
 # %%
 # remove the 'trashcan' nursery
-nursery_id, structures, fragments = get_nursery_data("REMOVE", branch_id)
+# nursery_id, structures, fragments = get_nursery_data("REMOVE", branch_id)
 
-# check data
-frags = [frag[1] for frag in fragments]
-in_nursery = [frag for frag in frags if frag['state'] == 'inNursery']
-createdYear = [frag['metadata']['createdAt'].year for frag in frags]
-# check number created in 2025
-created2025 = len([yr for yr in createdYear if yr == 2025])
 
 # %%
 # do the cleanup
-delete_nursery(qf, nursery_id, structures, fragments, False)
+# delete_nursery(qf, nursery_id, structures, fragments, False)
 
 # %%
 # remove sandbox nursery
-nursery_id, structures, fragments = get_nursery_data("SANDBOX", branch_id)
+nursery_id, structures, fragments = get_nursery_data("Sandbox", branch_id)
 delete_nursery(qf, nursery_id, structures, fragments, False)
 
 
