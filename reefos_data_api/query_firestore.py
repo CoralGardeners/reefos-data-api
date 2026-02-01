@@ -149,9 +149,7 @@ class QueryFirestore:
     def get_org_by_name(self, name):
         coll = self.db.collection("_orgs").where(filter=FieldFilter("name", "==", name))
         org = self.get_docs(coll)
-        if len(org) == 0:
-            return None
-        return org[0]
+        return org[0] if len(org) > 0 else None
 
     def get_org_by_id(self, org_id):
         doc = self.db.collection("_orgs").document(org_id)
@@ -168,7 +166,17 @@ class QueryFirestore:
                  .where(filter=FieldFilter("siteType", "==", st.branch.value))
                  .where(filter=FieldFilter("location.orgID", "==", org_id))
                  .where(filter=FieldFilter("name", "==", name)))
-        return self.get_docs(query)[0]
+        docs = self.get_docs(query)
+        return self.get_docs(query)[0] if len(docs) > 0 else None
+
+    def get_nursery_by_name(self, org_id, branch_id, name):
+        query = (self.db.collection("_sites")
+                 .where(filter=FieldFilter("siteType", "==", st.nursery.value))
+                 .where(filter=FieldFilter("location.orgID", "==", org_id))
+                 .where(filter=FieldFilter("location.branchID", "==", branch_id))
+                 .where(filter=FieldFilter("name", "==", name)))
+        docs = self.get_docs(query)
+        return self.get_docs(query)[0] if len(docs) > 0 else None
 
     def get_site_by_id(self, site_id):
         doc = self.db.collection("_sites").document(site_id)
@@ -231,7 +239,7 @@ class QueryFirestore:
         query = self.db.collection("_statistics")
         if len(stat_type) > 0:
             op = 'in' if type(stat_type) is list else "=="
-            query = query.where(filter=FieldFilter('stat_type', op, stat_type))
+            query = query.where(filter=FieldFilter('statType', op, stat_type))
         query = self.add_filter(query, filter_fields)
         return self.add_location_filter(query, location)
         

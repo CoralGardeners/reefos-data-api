@@ -104,7 +104,7 @@ def aggregate_monitorings(qf, id_attrs, events, logs, fragids):
     agg_df = pd.concat([by_nursery, by_L1, by_spp])
     agg_df = agg_df[re_order].rename(columns={attr + '_mean': attr for attr in attrs})
     agg_df['monitoring_name'] = agg_df.logID.map(log_df.set_index('logID')['name'])
-    agg_df['stat_type'] = agg_df.logID.map(log_df.set_index('logID')['eventType'])
+    agg_df['statType'] = agg_df.logID.map(log_df.set_index('logID')['eventType'])
 
     return agg_df, events_df
 
@@ -124,9 +124,9 @@ def make_into_stats_list(df, loc_attrs, stat_type):
     df.replace([np.nan], [None], inplace=True)
 
     _df = df.join(df[loc_attrs].agg(dict, axis=1).to_frame('location')).drop(loc_attrs, axis=1)
-    if 'stat_type' not in df:
-        _df['stat_type'] = stat_type
-    data_attrs = [attr for attr in _df.columns if attr not in ['location', 'stat_type']]
+    if 'statType' not in df:
+        _df['statType'] = stat_type
+    data_attrs = [attr for attr in _df.columns if attr not in ['location', 'statType']]
     data_dict = _df[data_attrs].apply(lambda x: {k: to_native(v) for k, v in dict(x).items()}, axis=1)
     _df = _df.join(data_dict.to_frame('data')).drop(data_attrs, axis=1)
     return _df.to_dict('records')
@@ -455,11 +455,11 @@ def control_stats(qf, control_id, control=None):
 
 def all_nursery_stats(qf, stats_df, loc):
     results = []
-    df = stats_df[stats_df.stat_type == 'nursery_stats'].dropna(axis=1, how='all')
+    df = stats_df[stats_df.statType == 'nursery_stats'].dropna(axis=1, how='all')
     if len(df) > 0:
-        ddf = stats_df[stats_df.stat_type == 'fragment_donor']
+        ddf = stats_df[stats_df.statType == 'fragment_donor']
         ddf = ddf.dropna(subset='nurseryID', axis=0).dropna(axis=1, how='all')
-        donor_df = stats_df[stats_df.stat_type == 'donor_nursery_details_stats']
+        donor_df = stats_df[stats_df.statType == 'donor_nursery_details_stats']
         donor_df = donor_df.dropna(subset='nurseryID', axis=0).dropna(axis=1, how='all')
         for nid, stats in df.set_index('nurseryID').iterrows():
             nddf = ddf[ddf.nurseryID == nid].copy()
@@ -489,7 +489,7 @@ def all_nursery_stats(qf, stats_df, loc):
                 'Mother_Colony_Frac': 0,
                 'age': 0,
                 "nurseryCreatedAt": nursery['metadata']['createdAt'],
-                'stat_type': 'nursery_stats',
+                'statType': 'nursery_stats',
                 }
             results.append(nursery_data)
     return results
@@ -499,9 +499,9 @@ def all_outplant_stats(qf, stats_df, loc):
     results = []
     oids = qf.get_docs(qf.query_outplantsites(loc))
     oids = {val[0]: val[1] for val in oids}
-    op_df = stats_df[stats_df.stat_type == 'outplant_stats'].dropna(axis=1, how='all')
+    op_df = stats_df[stats_df.statType == 'outplant_stats'].dropna(axis=1, how='all')
     if len(op_df) > 0:
-        cdf = stats_df[stats_df.stat_type == 'outplantcell_stats'].dropna(axis=1, how='all')
+        cdf = stats_df[stats_df.statType == 'outplantcell_stats'].dropna(axis=1, how='all')
         for oid, op_stat in op_df.set_index('outplantID').iterrows():
             op_cdf = cdf[cdf.outplantID == oid]
             res = ep._outplant_stats_helper(qf, oid, oids[oid],
@@ -522,7 +522,7 @@ def all_outplant_stats(qf, stats_df, loc):
                 "cells": 0,
                 "ytd_outplanted": 0,
                 "species": 0,
-                'stat_type': 'outplant_stats',
+                'statType': 'outplant_stats',
                 'mother_colonies': 0,
                 'fragments': 0,
                 "species_per_cell": 0,
@@ -535,10 +535,10 @@ def all_outplant_stats(qf, stats_df, loc):
 
 def _get_fragment_species_stats(qf, loc, stats_df, data):
     # get species stats for fragments in this branch
-    fdf = stats_df[stats_df.stat_type == 'fragment_donor']
+    fdf = stats_df[stats_df.statType == 'fragment_donor']
     fdf = fdf.dropna(subset='nurseryID', axis=0).dropna(axis=1, how='all')
     if len(fdf) > 0:
-        donor_df = stats_df[stats_df.stat_type == 'donor_nursery_details_stats'].copy()
+        donor_df = stats_df[stats_df.statType == 'donor_nursery_details_stats'].copy()
         ep._donor_stats_helper(fdf, donor_df, data)
 
 
@@ -576,7 +576,7 @@ def summary_branch_stats(qf, loc, branch_stats):
 #    restosites = qf.get_docs(qf.query_restosites(loc))
     stats = [(idx, doc) for idx, doc in enumerate(branch_stats)]
     stats_df = qf.documents_to_dataframe(stats, ['data', 'location'])
-    bdf = stats_df[stats_df.stat_type == 'branch_stats'].dropna(axis=1, how='all')
+    bdf = stats_df[stats_df.statType == 'branch_stats'].dropna(axis=1, how='all')
     if _branch['name'] == fp:
         op_offset = fp_pre_database['outplanted']
         seeded_offset = fp_pre_database['seeded']
@@ -667,7 +667,7 @@ def compute_statistics(qf, save=False, limit=None):
             branch_stats = get_stats_of_location(qf, loc)
             summary = summary_branch_stats(qf, loc, branch_stats)
             branch_stats.append({
-                'stat_type': 'branch_summary',
+                'statType': 'branch_summary',
                 'location': loc,
                 'data': summary
                 })

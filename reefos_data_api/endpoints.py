@@ -21,65 +21,52 @@ moorea_historic_data = [
 def api_help():
     strs = [
         "Hello data seeker",
-        "Data Explorer API Endpoints",
+        "Coral Gardeners Data API Endpoints",
         "",
         "Get org list",
-        "data.coralgardeners.org/data/orgs?pwd=showmethedata",
+        "dataapi.coralgardeners.org/data/orgs?pwd=showmethedata",
         "",
         "Get global overview",
-        "data.coralgardeners.org/data/global?org=coral-gardeners&pwd=showmethedata",
+        "dataapi.coralgardeners.org/data/global?org=<orgID>&pwd=showmethedata",
         "",
         "Get by-year overview",
-        "data.coralgardeners.org/data/byyear?org=coral-gardeners&pwd=showmethedata",
+        "dataapi.coralgardeners.org/data/byyear?org=<orgID>&pwd=showmethedata",
         "",
-        "Get branches summary",
-        "data.coralgardeners.org/data/branches?org=coral-gardeners&pwd=showmethedata",
+        "Get summary of all branches in an org",
+        "dataapi.coralgardeners.org/data/branches?<orgID>&pwd=showmethedata",
         "",
         "Get branch overview using branch ID or name",
-        "data.coralgardeners.org/data/branch?org=coral-gardeners&branch=moorea&pwd=showmethedata",
+        "dataapi.coralgardeners.org/data/branch?branch=<branchID>&pwd=showmethedata",
         "",
         "Get nursery data using nursery ID. Add details=True to get monitoring details",
-        "data.coralgardeners.org/data/nursery?org=coral-gardeners&nursery=xxx&pwd=showmethedata",
+        "dataapi.coralgardeners.org/data/nursery?nursery=<nurseryID>&pwd=showmethedata",
         "",
         "Get nursery data using branch and nursery name. Add details=True to get monitoring details",
-        "data.coralgardeners.org/data/nursery?org=coral-gardeners&branch=xxx&nursery=xxx&pwd=showmethedata",
+        "dataapi.coralgardeners.org/data/nursery?&nursery=<nurseryID>&pwd=showmethedata",
         "",
         "Get outplant data using outplant ID",
-        "data.coralgardeners.org/data/outplant?org=coral-gardeners&outplant=xxx&pwd=showmethedata",
-        "",
-        "Get outplant data using branch and outplant name",
-        "data.coralgardeners.org/data/outplant?org=coral-gardeners&branch=xxx&outplant=xxx&pwd=showmethedata",
+        "dataapi.coralgardeners.org/data/outplant?outplant=<outplantID>&pwd=showmethedata",
         "",
         "Get branch mothercolonies. Add details=True to get individual colony detils",
-        "data.coralgardeners.org/data/mothercolonies?org=coral-gardeners&branch=moorea&pwd=showmethedata",
+        "dataapi.coralgardeners.org/data/mothercolonies?branch=<branchID>&pwd=showmethedata",
+        "dataapi.coralgardeners.org/data/mothercolonies?branch=<branchID>&detils=True&pwd=showmethedata",
         "",
         "Reefcam Data Endpoints",
         "All use the parameters:",
         "org=coral-gardeners&device=xxx&start=2023-12-1&end=2024-03-31&pwd=showmethedata",
         "end is optional, if not given then one day of data is retrieved",
-        "data.coralgardeners.org/data/images?org=coral-gardeners&device=reefos-01&start=02/21/2024&pwd=showmethedata",
+        "dataapi.coralgardeners.org/data/images?org=coral-gardeners&device=reefos-01&start=02/21/2024&pwd=showmethedata",
         "",
-        "data.coralgardeners.org/data/images",
-        "data.coralgardeners.org/data/audio",
-        "data.coralgardeners.org/data/measurement/temperature",
-        "data.coralgardeners.org/data/measurement/bioacoustics",
-        "data.coralgardeners.org/data/measurement/fishcommunity",
-        "data.coralgardeners.org/data/measurement/fishdiversity",
+        "dataapi.coralgardeners.org/data/images",
+        "dataapi.coralgardeners.org/data/audio",
+        "dataapi.coralgardeners.org/data/measurement/temperature",
+        "dataapi.coralgardeners.org/data/measurement/bioacoustics",
+        "dataapi.coralgardeners.org/data/measurement/fishcommunity",
+        "dataapi.coralgardeners.org/data/measurement/fishdiversity",
         "",
         "Get a file",
-        "data.coralgardeners.org/file?branch=moorea&filename=filepath&pwd=showmethedata",
+        "dataapi.coralgardeners.org/file?branch=moorea&filename=filepath&pwd=showmethedata",
         "",
-        "Add new site data (siteType=nursery, outplant, control) to a branch",
-        "data.coralgardeners.org/refresh?org=coral-gardeners&branch=moorea&siteType=nursery&pwd=showmethedata",
-        "",
-        "Refresh cached data for a branch (threaded)",
-        "data.coralgardeners.org/refreshbranch?org=coral-gardeners&branch=moorea&pwd=showmethedata",
-        "",
-        "Refresh all cached data for an org (threaded)",
-        "data.coralgardeners.org/refreshall?org=coral-gardeners&pwd=showmethedata",
-        "",
-        "Status of refresh (available or running)",
-        "data.coralgardeners.org/refreshstatus",
         ]
     return json.dumps(strs)
 
@@ -208,7 +195,7 @@ def get_nursery_monitoring_history(qf, nursery_id, agg_type='by_nursery'):
     mdf = qf.documents_to_dataframe(monitoring_stats, ['data', 'location'])
     # set non-bleaching attributes in bleaching monitoring to nan as they are incomplete
     if len(mdf) > 0:
-        mdf.loc[mdf.stat_type == 'bleachingNurseryMonitoring', ['EVI', 'alive', 'health']] = None  # np.nan
+        mdf.loc[mdf.statType == 'bleachingNurseryMonitoring', ['EVI', 'alive', 'health']] = None  # np.nan
         mdf = mdf.sort_values('monitoredAt')
     return mdf
 
@@ -235,7 +222,7 @@ def get_nursery_monitoring_trends(monitoring_df):
 def _nursery_stats_helper(qf, nursery_id, nursery_data, ddf=None, donor_df=None):
     nursery = qf.get_site_by_id(nursery_id)
     branch_id = nursery['location']['branchID']
-    drop = ['stat_type', 'doc_id']
+    drop = ['statType', 'doc_id']
     for attr in drop:
         del nursery_data[attr]
     nursery_data['nurseryID'] = nursery_id
@@ -294,7 +281,7 @@ def _outplant_stats_helper(qf, outplant_id, outplant, op_stats, cdf, details):
     outplant_data['species_per_cell'] = float(cdf.n_species.mean()) if n_cells > 0 else 0
     outplant_data['corals_per_cell'] = float(cdf.n_outplanted.mean()) if n_cells > 0 else 0
     if details and n_cells > 0:
-        keep = ['n_mothercolonies', 'n_species', 'n_outplanted', 'outplantID', 'outplantCellID', 'monitoredAt']
+        keep = ['n_mothercolonies', 'n_species', 'n_outplanted', 'outplantID', 'outplantCellID']
         outplant_data['cells'] = cdf[keep].to_dict('records')
     monitoring_df = get_outplant_monitoring_history(qf, outplant_id)
     if monitoring_df is not None and len(monitoring_df) > 0:
@@ -357,7 +344,7 @@ def branch_stats(qf, loc):
 def full_nursery_stats(qf, nursery_id):
     keep = ['EVI_count', 'n_fragments', 'bleach', 'EVI', 'alive', 'health', 'nurseryID']
     history_keep = ['nurseryID', 'bleach', 'EVI', 'alive',
-                    'health', 'stat_type', 'monitoring_name', 'monitoredAt']
+                    'health', 'statType', 'monitoring_name', 'monitoredAt']
 
     loc = {'nurseryID': nursery_id}
     structure_stats = qf.get_docs(qf.query_statistics(loc, 'structure_stats'))
