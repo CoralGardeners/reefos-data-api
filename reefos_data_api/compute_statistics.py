@@ -314,6 +314,7 @@ def get_donor_stats(qf, location, frags):
 # aggregate outplanted fragments over outplant and cells
 def get_outplanted_stats(loc, outplanted):
     if len(outplanted) > 0:
+        taxon_map = get_taxon_map(qf)
         loc_attrs = list(loc.keys())
         year = dt.datetime.now().year
         fdf = documents_to_dataframe(outplanted, ['location'], {})
@@ -326,6 +327,7 @@ def get_outplanted_stats(loc, outplanted):
         op_stats['ytd_outplanted'] = ytd_df.groupby(['outplantID'])['doc_id'].count()
         op_stats['ytd_outplanted'] = op_stats['ytd_outplanted'].fillna(0)
         op_stats = make_into_stats_list(op_stats, ['orgID', 'branchID', 'outplantID'], 'outplant_stats')
+        # aggregate by outplant and cell and compute stats
         grps = fdf.groupby(loc_attrs + ['outplantID', 'outplantCellID'])
         cell_stats = grps.agg(n_species=('organismID', 'nunique'),
                               n_mothercolonies=('donorID', 'nunique'),
@@ -333,7 +335,15 @@ def get_outplanted_stats(loc, outplanted):
         cell_stats = make_into_stats_list(cell_stats,
                                           loc_attrs + ['outplantID', 'outplantCellID'],
                                           'outplantcell_stats')
-        return op_stats + cell_stats
+        # aggregate by outplant and species and compute stats
+        grps = fdf.groupby(loc_attrs + ['outplantID', 'organismID'])
+        species_stats = grps.agg(n_mothercolonies=('donorID', 'nunique'),
+                                 n_outplanted=('doc_id', 'count')).reset_index()
+        species_stats['taxon'] = species_stats.organismID.map(taxon_map)
+        species_stats = make_into_stats_list(species_stats,
+                                             loc_attrs + ['outplantID'],
+                                             'outplant_species_stats')
+        return op_stats + cell_stats + species_stats
     return []
 
 
@@ -502,11 +512,13 @@ def all_outplant_stats(qf, stats_df, loc):
     op_df = stats_df[stats_df.statType == 'outplant_stats'].dropna(axis=1, how='all')
     if len(op_df) > 0:
         cdf = stats_df[stats_df.statType == 'outplantcell_stats'].dropna(axis=1, how='all')
+        # sdf = stats_df[stats_df.statType == 'outplant_species_stats'].dropna(axis=1, how='all')
         for oid, op_stat in op_df.set_index('outplantID').iterrows():
             op_cdf = cdf[cdf.outplantID == oid]
+            # op_sdf = sdf[sdf.outplantID == oid]
             res = ep._outplant_stats_helper(qf, oid, oids[oid],
                                             op_stat.to_dict(),
-                                            op_cdf, False)
+                                            op_cdf, None, False)
             results.append(res)
     # add empty records for outplants with no fragments planted yet
     for oid, op in oids.items():
@@ -675,6 +687,7 @@ def compute_statistics(qf, save=False, limit=None):
     # add aggregate stats to Firestore
     if save:
         add_collection(qf.db, "statistics", results, limit=limit)
+    return results
 
 
 # %%
@@ -687,4 +700,4 @@ if __name__ == "__main__":
         creds = "restoration-app---dev-6df41-firebase-adminsdk-fbsvc-fd29c504a1.json"
         project_id="restoration-app---dev-6df41"
     qf = qq.QueryFirestore(project_id=project_id, creds=creds)
-    compute_statistics(qf, save=True, limit=None)
+    results = compute_statistics(qf, save=False, limit=None)

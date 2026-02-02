@@ -266,7 +266,7 @@ def get_outplant_monitoring_history(qf, outplant_id):
     return mdf
 
 
-def _outplant_stats_helper(qf, outplant_id, outplant, op_stats, cdf, details):
+def _outplant_stats_helper(qf, outplant_id, outplant, op_stats, cdf, sdf, details):
     _outplant = outplant or qf.get_site_by_id(outplant_id)
     # make the block of outplant data
     n_cells = len(cdf)
@@ -283,6 +283,8 @@ def _outplant_stats_helper(qf, outplant_id, outplant, op_stats, cdf, details):
     if details and n_cells > 0:
         keep = ['n_mothercolonies', 'n_species', 'n_outplanted', 'outplantID', 'outplantCellID']
         outplant_data['cells'] = cdf[keep].to_dict('records')
+    if details:
+        outplant_data['outplant_species'] = sdf.to_dict('records')        
     monitoring_df = get_outplant_monitoring_history(qf, outplant_id)
     if monitoring_df is not None and len(monitoring_df) > 0:
         history_keep = ['logID', 'branchID', 'outplantID', 'outplantCellID', 'percentBleach',
@@ -302,13 +304,20 @@ def outplant_stats(qf, outplant_id, outplant=None, details=False):
     loc = {'outplantID': outplant_id}
     op_stats = qf.get_docs(qf.query_statistics(loc, 'outplant_stats'))
     if len(op_stats) > 0:
-        cell_stats = qf.get_docs(qf.query_statistics(loc, 'outplantcell_stats'))
-        cdf = qf.documents_to_dataframe(cell_stats, ['data', 'location'])
+        if details:
+            cell_stats = qf.get_docs(qf.query_statistics(loc, 'outplantcell_stats'))
+            cdf = qf.documents_to_dataframe(cell_stats, ['data', 'location'])
+            spp_stats = qf.get_docs(qf.query_statistics(loc, 'outplant_species_stats'))
+            sdf = qf.documents_to_dataframe(spp_stats, ['data', 'location'])
+        else:
+            cdf = pd.DataFrame()
+            sdf = pd.DataFrame()
         op_stats = op_stats[0][1]
     else:
         op_stats = {'data': []}
         cdf = pd.DataFrame()
-    return _outplant_stats_helper(qf, outplant_id, outplant, op_stats['data'], cdf, details)
+        sdf = pd.DataFrame()
+    return _outplant_stats_helper(qf, outplant_id, outplant, op_stats['data'], cdf, sdf, details)
 
 
 def control_stats(qf, control_id, control=None):
