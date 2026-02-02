@@ -284,7 +284,8 @@ def _outplant_stats_helper(qf, outplant_id, outplant, op_stats, cdf, sdf, detail
         keep = ['n_mothercolonies', 'n_species', 'n_outplanted', 'outplantID', 'outplantCellID']
         outplant_data['cells'] = cdf[keep].to_dict('records')
     if details:
-        outplant_data['outplant_species'] = sdf.to_dict('records')        
+        keep = ['taxon', 'n_mothercolonies', 'n_outplanted', 'outplantID', 'organismID']
+        outplant_data['outplant_species'] = sdf[keep].to_dict('records')        
     monitoring_df = get_outplant_monitoring_history(qf, outplant_id)
     if monitoring_df is not None and len(monitoring_df) > 0:
         history_keep = ['logID', 'branchID', 'outplantID', 'outplantCellID', 'percentBleach',
@@ -377,10 +378,6 @@ def full_nursery_stats(qf, nursery_id):
         'spp_history': shdf.to_dict('records')
         }
     return all_stats
-
-
-def full_outplant_stats(qf, outplant_id):
-    return outplant_stats(qf, outplant_id, details=True)
 
 
 def get_donor_stats(qf, branch_id, details=True):
