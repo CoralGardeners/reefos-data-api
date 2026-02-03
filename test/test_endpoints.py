@@ -105,7 +105,7 @@ nursery_data = _make_return_data(nd)
 # data.coralgardeners.org/data/outplant?org=coral-gardeners&outplant=aceCTY014DM4DBejGaWX&pwd=showmethedata
 print("Outplant")
 op_id = 'yFGyv9RB6YmdNWktBGpw'  # outplants[-1][0]
-outplant_data = ep.outplant_stats(qf, op_id, details=False)
+outplant_data = ep.outplant_stats(qf, op_id, details=True)
 
 # endpoint mothercolonies
 # data.coralgardeners.org/data/mothercolonies?org=coral-gardeners&branch=moorea&pwd=showmethedata
