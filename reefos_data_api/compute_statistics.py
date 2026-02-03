@@ -531,7 +531,7 @@ def all_outplant_stats(qf, stats_df, loc):
                 'orgID': op['location']['orgID'],
                 'branchID': op['location']['branchID'],
                 # 'restoSiteID': op['location'].get('restoSiteID'),
-                "cells": 0,
+                "n_cells": 0,
                 "ytd_outplanted": 0,
                 "species": 0,
                 'statType': 'outplant_stats',
@@ -700,4 +700,4 @@ if __name__ == "__main__":
         creds = "restoration-app---dev-6df41-firebase-adminsdk-fbsvc-fd29c504a1.json"
         project_id="restoration-app---dev-6df41"
     qf = qq.QueryFirestore(project_id=project_id, creds=creds)
-    results = compute_statistics(qf, save=False, limit=None)
+    results = compute_statistics(qf, save=True, limit=None)
