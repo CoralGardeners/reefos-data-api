@@ -274,7 +274,6 @@ def _outplant_stats_helper(qf, outplant_id, outplant, op_stats, cdf, sdf, detail
     outplant_data = {
         "outplantID": outplant_id,
         "name": _outplant['name'],
-        "n_cells": n_cells,
         "lat": _outplant['geolocation']['latitude'],
         "lon": _outplant['geolocation']['longitude'],
         }

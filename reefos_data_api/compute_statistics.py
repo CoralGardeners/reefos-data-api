@@ -321,6 +321,7 @@ def get_outplanted_stats(loc, outplanted):
         grps = fdf.groupby(loc_attrs + ['outplantID'])
         op_stats = grps.agg(species=('organismID', 'nunique'),
                             mother_colonies=('donorID', 'nunique'),
+                            n_cells=('outplantCellID', 'nunique'),
                             fragments=('doc_id', 'count')).reset_index()
         year = dt.datetime.now().year
         ytd_df = fdf[fdf.createdAt.dt.year == year]
