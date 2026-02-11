@@ -85,6 +85,10 @@ class QueryFirestore:
         return df
 
     @staticmethod
+    def get_docrefs(query):
+        return [doc for doc in query.where(filter=FieldFilter("metadata.deleted", "==", False)).stream(retry=custom_retry)]
+
+    @staticmethod
     def get_docs(query, fields=None):
 #        return [(doc.id, doc.to_dict() if fields is None else {field: doc.get(field) for field in fields})
 #                for doc in query.where(filter=FieldFilter("metadata.deleted", "==", False)).stream()]

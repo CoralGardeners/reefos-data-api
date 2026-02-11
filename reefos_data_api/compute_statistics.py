@@ -268,7 +268,7 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     spp_nursery_stats['createdAt'] = edf.createdAt.max()
     spp_nursery_stats['taxon'] = spp_nursery_stats.organismID.map(taxon_map)
     spp_nursery_stats = make_into_stats_list(spp_nursery_stats,
-                                             ['orgID', 'branchID', 'nurseryID', 'organismID'],
+                                             ['orgID', 'branchID', 'nurseryID'],
                                              'spp_nursery_stats')
 
     all_stats = branch_stats.copy()
@@ -437,6 +437,26 @@ def delete_collection(db, coll_name, limit=5000):
         print('Getting docs to delete')
         docs = [snapshot for snapshot in db.collection(coll_name)
                 .limit(limit).stream()]
+        batch = db.batch()
+        for doc in docs:
+            doc_counter = doc_counter + 1
+            if doc_counter % batch_size == 0:
+                commit_counter += 1
+                print(f'Deleting batch {batch_size * commit_counter}')
+                batch.commit()
+            batch.delete(doc.reference)
+        batch.commit()
+        if len(docs) == limit:
+            continue
+        break
+
+
+def delete_documents(db, docs, limit=5000):
+    print(f'Deleting {len(docs)} documents}}')
+    doc_counter = 0
+    commit_counter = 0
+    batch_size = 500
+    while True:
         batch = db.batch()
         for doc in docs:
             doc_counter = doc_counter + 1
@@ -639,15 +659,16 @@ def summary_branch_stats(qf, loc, branch_stats):
 
 # add documents to a collection
 # documents are a list of dicts
-def add_collection(db, coll_name, documents, limit=None, batchsize=1000):
+def add_collection(db, coll_name, documents, limit=None, batchsize=1000, overwrite=False):
     print(f"Adding {len(documents)} documents to collection {coll_name}")
     now = dt.datetime.now()
     prefix = '_'
     # prefix = ''
     coll_name = prefix + coll_name
     if limit != 0:
-        print(f"Deleting collection {coll_name} prior to writing new data")
-        delete_collection(db, coll_name)
+        if not overwrite:
+            print(f"Deleting collection {coll_name} prior to writing new data")
+            delete_collection(db, coll_name)
         batch = db.batch()
         idx = 0
         for doc in documents:
@@ -664,11 +685,25 @@ def add_collection(db, coll_name, documents, limit=None, batchsize=1000):
         batch.commit()
 
 
+def add_stats_by_branch(qf, results, save):
+    db = qf.db
+    for branch_id, branch_stats in results.items():
+        stat_types = {stat['statType'] for stat in branch_stats}
+        for st in stat_types:
+            stats = [stat for stat in branch_stats if stat['statType'] == st]
+            print(f"Adding stats for branch {branch_id} {st} {len(stats)}")
+            loc = {'branchID': branch_id}
+            docs = qf.get_docrefs(qf.query_statistics(loc, stat_type=st))
+            if save:
+                delete_documents(db, docs)
+                add_collection(db, 'statistics', stats, overwrite=True)
+        
+
 # %%
 
 # compute stats and save to Firestoire collection
 def compute_statistics(qf, save=False, limit=None):
-    results = []
+    results = {}
     # get summaries for each branch in each org
     orgs = qf.get_orgs()
     for org in orgs:
@@ -684,10 +719,10 @@ def compute_statistics(qf, save=False, limit=None):
                 'location': loc,
                 'data': summary
                 })
-            results.extend(branch_stats)
+            results[branch[0]] = branch_stats
     # add aggregate stats to Firestore
     if save:
-        add_collection(qf.db, "statistics", results, limit=limit)
+        add_stats_by_branch(qf, results, save)
     return results
 
 
@@ -701,4 +736,7 @@ if __name__ == "__main__":
         creds = "restoration-app---dev-6df41-firebase-adminsdk-fbsvc-fd29c504a1.json"
         project_id="restoration-app---dev-6df41"
     qf = qq.QueryFirestore(project_id=project_id, creds=creds)
-    results = compute_statistics(qf, save=True, limit=None)
+    results = compute_statistics(qf, save=False, limit=None)
+
+# %%
+add_stats_by_branch(qf, results, True)
