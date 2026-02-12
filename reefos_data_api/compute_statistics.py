@@ -737,6 +737,3 @@ if __name__ == "__main__":
         project_id="restoration-app---dev-6df41"
     qf = qq.QueryFirestore(project_id=project_id, creds=creds)
     results = compute_statistics(qf, save=False, limit=None)
-
-# %%
-add_stats_by_branch(qf, results, True)
