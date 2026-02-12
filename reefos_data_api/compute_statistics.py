@@ -736,4 +736,4 @@ if __name__ == "__main__":
         creds = "restoration-app---dev-6df41-firebase-adminsdk-fbsvc-fd29c504a1.json"
         project_id="restoration-app---dev-6df41"
     qf = qq.QueryFirestore(project_id=project_id, creds=creds)
-    results = compute_statistics(qf, save=False, limit=None)
+    results = compute_statistics(qf, save=True, limit=None)
