@@ -35,8 +35,14 @@ def api_help():
         "Get summary of all branches in an org",
         "dataapi.coralgardeners.org/data/branches?orgID&pwd=showmethedata",
         "",
-        "Get branch overview using branch ID or name",
+        "Get branch overview using branch ID",
         "dataapi.coralgardeners.org/data/branch?branch=branchID&pwd=showmethedata",
+        "",
+        "Get restoration sites overview of all sites in branch ID",
+        "dataapi.coralgardeners.org/data/restosites?branch=branchID&pwd=showmethedata",
+        "",
+        "Get restoration site overview of restosite ID",
+        "dataapi.coralgardeners.org/data/restosite?restosite=restositeID&pwd=showmethedata",
         "",
         "Get nursery data using nursery ID. Add details=True to get monitoring details",
         "dataapi.coralgardeners.org/data/nursery?nursery=nurseryID&pwd=showmethedata",
@@ -186,6 +192,25 @@ def by_year_stats(qf, org_id):
         by_year_df.loc[by_year_df.index > 2023, 'seeded'] += offset.loc['seeded']
         by_year_df = pd.concat([mdf, by_year_df.loc[by_year_df.index > 2023]]).reset_index()
     return by_year_df.to_dict('records')
+
+
+def _restosite_stats_helper(qf, restosite_id, restosite_data, ddf=None, donor_df=None):
+    restosite = qf.get_site_by_id(restosite_id)
+    branch_id = restosite['location']['branchID']
+    drop = ['statType', 'doc_id']
+    for attr in drop:
+        del restosite_data[attr]
+    restosite_data['nurseryID'] = restosite_id
+    restosite_data['name'] = restosite['name']
+    restosite_data["lat"] = restosite['geolocation']['latitude']
+    restosite_data["lon"] = restosite['geolocation']['longitude']
+    if ddf is None:
+        _get_fragment_species_stats(qf, {'branchID': branch_id, 'restositeID': restosite_id}, restosite_data)
+    else:
+        _donor_stats_helper(ddf, donor_df, restosite_data)
+    restosite_data['restositeCreatedAt'] = restosite['metadata']['createdAt']
+    restosite_data['age'] = (dt.datetime.now(dt.timezone.utc) - restosite_data['restositeCreatedAt']).days
+    return restosite_data
 
 
 def get_nursery_monitoring_history(qf, nursery_id, agg_type='by_nursery'):
@@ -348,6 +373,12 @@ def all_control_stats(qf, loc):
 def branch_stats(qf, loc):
     # get stats for brach or org
     stats = qf.get_docs(qf.query_statistics(loc, 'branch_summary'))
+    return [stat[1]['data'] for stat in stats]
+
+
+def restosite_stats(qf, loc):
+    # get stats for brach or org
+    stats = qf.get_docs(qf.query_statistics(loc, 'restosite_stats'))
     return [stat[1]['data'] for stat in stats]
 
 
