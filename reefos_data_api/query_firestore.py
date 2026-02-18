@@ -90,10 +90,13 @@ class QueryFirestore:
 
     @staticmethod
     def get_docs(query, fields=None):
-#        return [(doc.id, doc.to_dict() if fields is None else {field: doc.get(field) for field in fields})
-#                for doc in query.where(filter=FieldFilter("metadata.deleted", "==", False)).stream()]
         return [(doc.id, doc.to_dict() if fields is None else {field: doc.get(field) for field in fields})
                 for doc in query.where(filter=FieldFilter("metadata.deleted", "==", False)).stream(retry=custom_retry)]
+
+    @staticmethod
+    def get_docs_all(query, fields=None):
+        return [(doc.id, doc.to_dict() if fields is None else {field: doc.get(field) for field in fields})
+                for doc in query.stream(retry=custom_retry)]
 
     @staticmethod
     def get_doc_ids(query, fields=None):
