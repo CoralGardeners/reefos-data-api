@@ -131,6 +131,10 @@ class QueryFirestore:
     @staticmethod
     def get_count(query):
         return query.count().get()[0][0].value
+
+    def get_coral_taxon_map(self):
+        corals = self.get_organisms(org_type='coral')
+        return {doc[0]: doc[1]['genus'] + ' ' + doc[1]['species'] for doc in corals}
     
     def get_document(self, collection, doc_id):
         return self.db.collection(collection).document(doc_id).get().to_dict()
@@ -224,15 +228,6 @@ class QueryFirestore:
                  .where(filter=FieldFilter("state", "==", fs.in_nursery.value)))
         query = self.add_filter(query, filter_fields)
         return self.add_location_filter(query, loc)
-
-#    def query_all_outplanted_fragments(self, loc):
-#        query = (self.db.collection("_fragments")
-#                 .where(filter=FieldFilter("state", "==", fs.outplanted.value)))
-#        return self.add_location_filter(query, loc)
-
-#    def query_fragments_in_location(self, loc):
-#        query = self.db.collection("_fragments")
-#        return self.add_location_filter(query, loc)
 
     def query_events(self, location, event_type=[], filter_fields={}):
         query = self.db.collection("_events")

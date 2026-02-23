@@ -33,7 +33,7 @@ def api_help():
         "dataapi.coralgardeners.org/data/byyear?org=orgID&pwd=showmethedata",
         "",
         "Get summary of all branches in an org",
-        "dataapi.coralgardeners.org/data/branches?orgID&pwd=showmethedata",
+        "dataapi.coralgardeners.org/data/branches?org=orgID&pwd=showmethedata",
         "",
         "Get branch overview using branch ID",
         "dataapi.coralgardeners.org/data/branch?branch=branchID&pwd=showmethedata",
@@ -200,7 +200,7 @@ def _restosite_stats_helper(qf, restosite_id, restosite_data, ddf=None, donor_df
     drop = ['statType', 'doc_id']
     for attr in drop:
         del restosite_data[attr]
-    restosite_data['nurseryID'] = restosite_id
+    restosite_data['restositeID'] = restosite_id
     restosite_data['name'] = restosite['name']
     restosite_data["lat"] = restosite['geolocation']['latitude']
     restosite_data["lon"] = restosite['geolocation']['longitude']
