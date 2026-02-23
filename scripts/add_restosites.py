@@ -81,6 +81,7 @@ cg_restosite_info = [
     {'branch': 'Thailand', 'type': 'nursery', 'name': 'KM AO LOM CT-A', 'restosite': 'KM Ao Lom'},
     {'branch': 'Thailand', 'type': 'nursery', 'name': 'KM AO LOM RT-A', 'restosite': 'KM Ao Lom'},
     {'branch': 'Thailand', 'type': 'nursery', 'name': 'KM AO LOM RT-B', 'restosite': 'KM Ao Lom'},
+    {'branch': 'Thailand', 'type': 'nursery', 'name': 'KM COCOCAPE RT -A', 'restosite': 'KM Cococape'},
 
     {'branch': 'Thailand', 'type': 'outplant', 'name': 'KM AO LOM EAST SAND', 'restosite': 'KM Ao Lom'},
 ]
@@ -126,6 +127,8 @@ control_siteinfo = {}
 restosites = {}
 for rs_info in restosite_info:
     rs_name = rs_info['restosite']
+    if rs_name in restosites_map:
+        continue
     if rs_name not in restosites:
         restosites[rs_name] = []
     branch_name = rs_info['branch']
@@ -195,7 +198,7 @@ for rs_name, site_info in restosites.items():
 # %%
 # make restosites in _site collection
 
-if False: # len(restosites_map) == 0:
+if True: # len(restosites_map) == 0:
     debug = False
     restosite_map = {}
     
@@ -209,25 +212,28 @@ if False: # len(restosites_map) == 0:
     control_id_map = {} 
     
     for _id, data in nurseries:
-        rs_name = nursery_siteinfo[data['name']]['restosite']
-        site_id = restosite_map[rs_name][0]
-        data['location'][resto_id] = site_id
-        uf.update_document("_sites", _id, data, debug=debug)
-        nursery_id_map[_id] = site_id
+        if data['name'] in nursery_siteinfo:
+            rs_name = nursery_siteinfo[data['name']]['restosite']
+            site_id = restosite_map[rs_name][0]
+            data['location'][resto_id] = site_id
+            uf.update_document("_sites", _id, data, debug=debug)
+            nursery_id_map[_id] = site_id
     
     for _id, data in outplants:
-        rs_name = outplant_siteinfo[data['name']]['restosite']
-        site_id = restosite_map[rs_name][0]
-        data['location'][resto_id] = site_id
-        uf.update_document("_sites", _id, data, debug=debug)
-        outplant_id_map[_id] = site_id
+        if data['name'] in outplant_siteinfo:
+            rs_name = outplant_siteinfo[data['name']]['restosite']
+            site_id = restosite_map[rs_name][0]
+            data['location'][resto_id] = site_id
+            uf.update_document("_sites", _id, data, debug=debug)
+            outplant_id_map[_id] = site_id
     
     for _id, data in controls:
-        rs_name = control_siteinfo[data['name']]['restosite']
-        site_id = restosite_map[rs_name][0]
-        data['location'][resto_id] = site_id
-        uf.update_document("_sites", _id, data, debug=debug)
-        control_id_map[_id] = site_id
+        if data['name'] in control_siteinfo:
+            rs_name = control_siteinfo[data['name']]['restosite']
+            site_id = restosite_map[rs_name][0]
+            data['location'][resto_id] = site_id
+            uf.update_document("_sites", _id, data, debug=debug)
+            control_id_map[_id] = site_id
     
     
     idx = 0
@@ -282,6 +288,6 @@ if False: # len(restosites_map) == 0:
 # %%
 # patch up restosites - add metadata
 
-for name, data in resto_site_data.items():
-    sid, _data = restosites_map[name]
-    uf.update_document("_sites", sid, data, debug=False)
+#for name, data in resto_site_data.items():
+#    sid, _data = restosites_map[name]
+#    uf.update_document("_sites", sid, data, debug=False)
