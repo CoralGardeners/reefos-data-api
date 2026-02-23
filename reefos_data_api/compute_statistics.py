@@ -729,14 +729,14 @@ def add_collection(db, coll_name, documents, limit=None, batchsize=1000, overwri
 def add_stats_by_branch(qf, results, save=True):
     db = qf.db
     for branch_id, branch_stats in results.items():
+        loc = {'branchID': branch_id}
+        if save:
+            delete_documents(db, qf.get_docrefs(qf.query_statistics(loc)))
         stat_types = {stat['statType'] for stat in branch_stats}
         for st in stat_types:
             stats = [stat for stat in branch_stats if stat['statType'] == st]
             print(f"Adding stats for branch {branch_id} {st} {len(stats)}")
-            loc = {'branchID': branch_id}
-            docs = qf.get_docrefs(qf.query_statistics(loc, stat_type=st))
             if save:
-                delete_documents(db, docs)
                 add_collection(db, 'statistics', stats, overwrite=True)
         
 
@@ -768,7 +768,7 @@ def compute_statistics(qf, save=False, limit=None):
 
 # %%
 if __name__ == "__main__":
-    save = False
+    save = True
     to_production = True
     if to_production:
         creds = 'restoration-ios-firebase-adminsdk-wg0a4-18ff398018.json'
