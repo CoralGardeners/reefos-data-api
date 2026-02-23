@@ -56,7 +56,6 @@ def add_evi(df):
 
 
 def aggregate_monitorings(qf, id_attrs, events, logs, fragids):
-    taxon_map = qf.get_coral_taxon_map()
     # make fragment monitoring event data into a dataframe ready for aggregation
     events_df = documents_to_dataframe(events, ['eventData', 'location'], {'location'})
     events_df = add_evi(events_df)
@@ -91,7 +90,7 @@ def aggregate_monitorings(qf, id_attrs, events, logs, fragids):
     by_spp.reset_index(inplace=True)
     by_spp.columns = ['_'.join(col).strip('_') for col in by_spp.columns.values]
     by_spp['agg_type'] = 'by_species'
-    by_spp['taxon'] = by_spp.organismID.map(taxon_map)
+    by_spp['taxon'] = by_spp.organismID.map(qf.coral_taxon_map)
 
     re_order = (id_attrs + ['restositeID', 'logID', 'nurseryID', 'structureID', 'taxon', 'monitoredAt', 'agg_type'] +
                 [attr + '_mean' for attr in attrs] +
@@ -144,7 +143,6 @@ def get_location_monitoring_event_info(qf, loc, frags):
 # get latest value and aggregate over nursery or structure to get current state
 def get_current_stats(qf, loc, edf, frags, outplanted):
     year = dt.datetime.now().year
-    taxon_map = qf.get_coral_taxon_map()
     frag_ids = set([frag[0] for frag in frags])
     fragspp = {frag[0]: frag[1]['organismID'] for frag in frags}
     fdf = documents_to_dataframe(frags, ['location'], {})
@@ -185,7 +183,7 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     frag_df = frag_df.pivot(columns='attr', values='value', index=['fragmentID', 'organismID'] + cols).reset_index()
     frag_df = all_frags.merge(frag_df[['fragmentID', 'EVI', 'alive', 'bleach', 'health', 'images']],
                               on='fragmentID', how='left')
-    taxa = frag_df.organismID.map(taxon_map)
+    taxa = frag_df.organismID.map(qf.coral_taxon_map)
     frag_df['genus'] = taxa.str.split().str[0]
     frag_df['species'] = taxa.str.split().str[1]
     frag_df['measuredAt'] = frag_df.fragmentID.map(latest_times)
@@ -261,7 +259,7 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     spp_nursery_stats['orgID'] = loc['orgID']
     spp_nursery_stats['branchID'] = loc['branchID']
     spp_nursery_stats['createdAt'] = edf.createdAt.max()
-    spp_nursery_stats['taxon'] = spp_nursery_stats.organismID.map(taxon_map)
+    spp_nursery_stats['taxon'] = spp_nursery_stats.organismID.map(qf.coral_taxon_map)
     spp_nursery_stats = make_into_stats_list(spp_nursery_stats,
                                              ['orgID', 'branchID', 'nurseryID'],
                                              'spp_nursery_stats')
@@ -277,7 +275,6 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
 
 def get_donor_stats(qf, location, frags):
     keep = ['doc_id', 'name', 'latitude', 'longitude', 'createdAt']
-    taxon_map = qf.get_coral_taxon_map()
     donors = qf.get_docs(qf.query_donorcolonies(location))
     if len(donors) > 0:
         donors_df = (documents_to_dataframe(donors, ['location', 'geolocation'], keep)
@@ -293,9 +290,9 @@ def get_donor_stats(qf, location, frags):
         details = fdf.groupby(['orgID', 'branchID', 'restositeID', 
                                'donorID']).agg(organismID=('organismID', 'first'),
                                                fragments=('organismID', 'count')).reset_index()
-        summary['taxon'] = summary.organismID.map(taxon_map)
-        nursery_details['taxon'] = nursery_details.organismID.map(taxon_map)
-        details['taxon'] = details.organismID.map(taxon_map)
+        summary['taxon'] = summary.organismID.map(qf.coral_taxon_map)
+        nursery_details['taxon'] = nursery_details.organismID.map(qf.coral_taxon_map)
+        details['taxon'] = details.organismID.map(qf.coral_taxon_map)
         nursery_details = nursery_details.merge(donors_df, on=['orgID', 'branchID', 'restositeID', 'donorID']
                                                 ).drop(columns=['metadata', 'siteType'])
         details = details.merge(donors_df, on=['orgID', 'branchID', 'restositeID', 'donorID']).drop(columns=['metadata', 'siteType'])
@@ -312,7 +309,6 @@ def get_donor_stats(qf, location, frags):
 # aggregate outplanted fragments over outplant and cells
 def get_outplanted_stats(qf, loc, outplanted):
     if len(outplanted) > 0:
-        taxon_map = qf.get_coral_taxon_map()
         loc_attrs = list(loc.keys())
         year = dt.datetime.now().year
         fdf = documents_to_dataframe(outplanted, ['location'], {})
@@ -338,7 +334,7 @@ def get_outplanted_stats(qf, loc, outplanted):
         grps = fdf.groupby(loc_attrs + ['outplantID', 'organismID'])
         species_stats = grps.agg(n_mothercolonies=('donorID', 'nunique'),
                                  n_outplanted=('doc_id', 'count')).reset_index()
-        species_stats['taxon'] = species_stats.organismID.map(taxon_map)
+        species_stats['taxon'] = species_stats.organismID.map(qf.coral_taxon_map)
         species_stats = make_into_stats_list(species_stats,
                                              loc_attrs + ['outplantID'],
                                              'outplant_species_stats')
@@ -484,7 +480,6 @@ def control_stats(qf, control_id, control=None):
 
 
 def all_restosite_stats(qf, stats_df, loc):
-    taxon_map = qf.get_coral_taxon_map()
     results = []
     df = stats_df[stats_df.statType == 'restosite_stats'].dropna(axis=1, how='all')
     if len(df) > 0:
@@ -492,7 +487,7 @@ def all_restosite_stats(qf, stats_df, loc):
         ddf = ddf.dropna(subset='restositeID', axis=0).dropna(axis=1, how='all')
         donor_df = stats_df[stats_df.statType == 'donor_site_summary_stats']
         donor_df = donor_df.dropna(subset='restositeID', axis=0).dropna(axis=1, how='all')
-        donor_df['taxon'] = donor_df.organismID.map(taxon_map)
+        donor_df['taxon'] = donor_df.organismID.map(qf.coral_taxon_map)
         for sid, stats in df.set_index('restositeID').iterrows():
             nddf = ddf[ddf.restositeID == sid].copy()
             ndonor_df = donor_df[donor_df.restositeID == sid].copy()
@@ -747,6 +742,7 @@ def add_stats_by_branch(qf, results, save=True):
 
 # compute stats and save to Firestoire collection
 def compute_statistics(qf, save=False, limit=None):
+    qf.init_coral_taxon_map()
     results = {}
     # get summaries for each branch in each org
     orgs = qf.get_orgs()

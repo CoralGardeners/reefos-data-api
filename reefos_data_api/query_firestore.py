@@ -43,6 +43,7 @@ class QueryFirestore:
         self.app, self.db = fsu.init_firestore_db(project_id=project_id,
                                                   db_id='reefapp',
                                                   creds=creds)
+        self.init_coral_taxon_map()
 
     def destroy(self):
         fsu.cleanup_firestore()
@@ -132,9 +133,10 @@ class QueryFirestore:
     def get_count(query):
         return query.count().get()[0][0].value
 
-    def get_coral_taxon_map(self):
+    # set current taxon map
+    def init_coral_taxon_map(self):
         corals = self.get_organisms(org_type='coral')
-        return {doc[0]: doc[1]['genus'] + ' ' + doc[1]['species'] for doc in corals}
+        self.coral_taxon_map = {doc[0]: doc[1]['genus'] + ' ' + doc[1]['species'] for doc in corals}
     
     def get_document(self, collection, doc_id):
         return self.db.collection(collection).document(doc_id).get().to_dict()
