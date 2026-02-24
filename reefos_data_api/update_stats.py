@@ -8,7 +8,9 @@ a few nurseries or outplants have new data.
 How it works:
   1. Compute all stats for every org/branch (same logic as compute_statistics).
   2. For each branch + statType, load existing stats from _statistics.
-  3. Diff new vs existing stats using a canonical key (statType + location).
+  3. Diff new vs existing stats using a canonical key (statType + location
+     + extra discriminating fields from data for stat types that can have
+     multiple docs per location, e.g. monitoring events).
      - Unchanged docs are skipped (no write).
      - Changed docs are updated in place.
      - New docs are added.
@@ -23,15 +25,16 @@ Where the savings come from:
   - nursery_stats, restosite_stats, branch_stats: small count, always cheap.
 
 Usage:
-    python scripts/update_stats.py                  # production, dry-run
+    python scripts/update_stats.py                  # production, dry-run, sequential
     python scripts/update_stats.py --save           # production, write changes
-    python scripts/update_stats.py --dev            # dev database, dry-run
-    python scripts/update_stats.py --dev --save     # dev database, write changes
+    python scripts/update_stats.py --workers 4      # process 4 branches in parallel
+    python scripts/update_stats.py --workers 4 --save
 """
 
 import argparse
 import datetime as dt
 import math
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import reefos_data_api.compute_statistics as cs
 import reefos_data_api.query_firestore as qq
@@ -66,20 +69,39 @@ def _normalize_dict(d):
     return {k: _normalize_value(v) for k, v in d.items()}
 
 
-def _canonical_key(stat):
-    """Build a hashable key from statType + location fields.
+# Stat types where statType + location is NOT unique.  These need
+# extra fields pulled from the data payload to form a unique key.
+_EXTRA_KEY_FIELDS = {
+    'bleachingNurseryMonitoring': ('logID', 'agg_type', 'taxon'),
+    'fullNurseryMonitoring':     ('logID', 'agg_type', 'taxon'),
+    'spp_nursery_stats':         ('organismID',),
+    'by_year':                   ('year', 'state'),
+    'outplant_species_stats':    ('organismID',),
+    'donor_summary_stats':       ('organismID',),
+    'donor_site_summary_stats':  ('organismID',),
+    'fragment_donor':            ('organismID',),
+    'outplant_fragment_donor':   ('organismID',),
+}
 
-    This uniquely identifies a statistics document so we can match
-    newly computed stats against existing ones in Firestore.  The key
-    is a tuple of (statType, sorted-location-items) which is hashable
-    and order-independent.
+
+def _canonical_key(stat):
+    """Build a hashable key that uniquely identifies a statistics document.
+
+    Uses statType + location as the base key.  For stat types where
+    multiple documents can share the same statType + location (e.g.
+    monitoring events at the same nursery on different dates), extra
+    discriminating fields are pulled from the data payload.
     """
     stat_type = stat.get('statType', '')
     location = stat.get('location', {})
+    data = stat.get('data', {})
     # Sort location items so the key is deterministic regardless of
     # dict ordering.  Convert values to strings for hashability.
     loc_items = tuple(sorted((k, str(v)) for k, v in location.items()))
-    return (stat_type, loc_items)
+    # Pull extra discriminating fields for stat types that need them.
+    extra_fields = _EXTRA_KEY_FIELDS.get(stat_type, ())
+    extra = tuple(str(data.get(f, '')) for f in extra_fields)
+    return (stat_type, loc_items, extra)
 
 
 def _comparable_data(stat):
@@ -226,12 +248,20 @@ def write_changes(db, to_add, to_update, to_delete, batchsize=500):
 # Main logic
 # ---------------------------------------------------------------------------
 
+def _log(prefix, msg):
+    """Print a message with a branch-name prefix."""
+    for line in msg.split('\n'):
+        print(f"  [{prefix}] {line}")
+
+
 def update_stats_for_branch(qf, org_id, branch_id, branch_name, save=False):
     """Compute stats for a branch and write only the changes.
 
     Returns a dict with counts: {added, updated, deleted, unchanged}
-    for this branch.
+    for this branch.  All output is prefixed with the branch name so
+    that parallel runs produce readable logs.
     """
+    tag = branch_name
     loc = {'orgID': org_id, 'branchID': branch_id}
 
     # --- Step 1: Compute all stats for this branch ---
@@ -240,7 +270,7 @@ def update_stats_for_branch(qf, org_id, branch_id, branch_name, save=False):
     #                             outplant, donor, monitoring, by_year stats
     #   summary_branch_stats   -> the top-level branch summary
     # The result is a list of stat dicts, each with {statType, location, data}.
-    print(f"  Computing stats for {branch_name}...")
+    _log(tag, "Computing stats...")
     branch_stats = cs.get_stats_of_location(qf, loc)
     summary = cs.summary_branch_stats(qf, loc, branch_stats)
     branch_stats.append({
@@ -285,10 +315,10 @@ def update_stats_for_branch(qf, org_id, branch_id, branch_name, save=False):
         # Print per-statType summary.
         # +added  ~updated  -deleted  =unchanged
         if to_add or to_update or to_delete:
-            print(f"    {stat_type}: +{len(to_add)} ~{len(to_update)} "
-                  f"-{len(to_delete)} ={unchanged}")
+            _log(tag, f"{stat_type}: +{len(to_add)} ~{len(to_update)} "
+                      f"-{len(to_delete)} ={unchanged}")
         else:
-            print(f"    {stat_type}: no changes ({unchanged} docs)")
+            _log(tag, f"{stat_type}: no changes ({unchanged} docs)")
 
         # Only write to Firestore if --save was specified and there
         # are actual changes to make.
@@ -300,29 +330,59 @@ def update_stats_for_branch(qf, org_id, branch_id, branch_name, save=False):
         totals['deleted'] += len(to_delete)
         totals['unchanged'] += unchanged
 
+    _log(tag, f"Done: +{totals['added']} ~{totals['updated']} "
+              f"-{totals['deleted']} ={totals['unchanged']}")
     return totals
 
 
-def run_update(qf, save=False):
-    """Iterate over all orgs and branches, updating statistics incrementally."""
+def run_update(qf, save=False, max_workers=1):
+    """Iterate over all orgs and branches, updating statistics incrementally.
+
+    Parameters
+    ----------
+    max_workers : int
+        Number of branches to process in parallel.  Use 1 (default) for
+        sequential execution, which is easier to debug.
+    """
     grand_totals = {'added': 0, 'updated': 0, 'deleted': 0, 'unchanged': 0}
 
+    # Collect all branches first so we can fan them out.
+    all_branches = []
     orgs = qf.get_orgs()
     for org_id, org_doc in orgs:
         org_name = org_doc.get('name', org_id)
         branches = qf.get_branches(org_id)
-        print(f"\nOrg: {org_name} ({len(branches)} branches)")
-
+        print(f"Org: {org_name} ({len(branches)} branches)")
         for branch_id, branch_doc in branches:
             branch_name = branch_doc.get('name', branch_id)
-            print(f"\n  Branch: {branch_name}")
+            all_branches.append((org_id, branch_id, branch_name))
 
-            totals = update_stats_for_branch(
-                qf, org_id, branch_id, branch_name, save=save
-            )
+    print(f"\nProcessing {len(all_branches)} branches "
+          f"with {max_workers} worker(s)\n")
 
+    def _process(branch_tuple):
+        org_id, branch_id, branch_name = branch_tuple
+        return branch_name, update_stats_for_branch(
+            qf, org_id, branch_id, branch_name, save=save
+        )
+
+    if max_workers <= 1:
+        # Sequential — simplest path, good for debugging.
+        for branch_tuple in all_branches:
+            branch_name, totals = _process(branch_tuple)
             for k in grand_totals:
                 grand_totals[k] += totals[k]
+    else:
+        # Parallel — fan out branches across threads.
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {
+                pool.submit(_process, bt): bt[2]
+                for bt in all_branches
+            }
+            for future in as_completed(futures):
+                branch_name, totals = future.result()
+                for k in grand_totals:
+                    grand_totals[k] += totals[k]
 
     # --- Final summary across all orgs and branches ---
     print("\n" + "=" * 60)
@@ -343,18 +403,23 @@ def run_update(qf, save=False):
     print("=" * 60)
 
 
-def update_statistics(save):
+def update_statistics(save, max_workers=1):
     creds = 'restoration-ios-firebase-adminsdk-wg0a4-18ff398018.json'
     project_id = "restoration-ios"
     print("Connecting to PRODUCTION database")
 
     qf = qq.QueryFirestore(project_id=project_id, creds=creds)
     try:
-        run_update(qf, save=save)
+        run_update(qf, save=save, max_workers=max_workers)
     finally:
         qf.destroy()
 
 # %%
 if __name__ == "__main__":
-    save = False
-    update_statistics(save)
+    parser = argparse.ArgumentParser(description="Incremental statistics update")
+    parser.add_argument("--save", action="store_true",
+                        help="Write changes to Firestore (default: dry-run)")
+    parser.add_argument("--workers", type=int, default=1,
+                        help="Branches to process in parallel (default: 1)")
+    args = parser.parse_args()
+    update_statistics(save=args.save, max_workers=args.workers)

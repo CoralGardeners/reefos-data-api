@@ -1,6 +1,8 @@
 # compute current firestore fragment stats and add them to firestore
 
 import datetime as dt
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 import numpy as np
 import pandas as pd
 
@@ -726,6 +728,12 @@ def add_collection(db, coll_name, documents, limit=None, batchsize=1000, overwri
         batch.commit()
 
 
+def _log(prefix, msg):
+    """Print a message with a branch-name prefix."""
+    for line in msg.split('\n'):
+        print(f"  [{prefix}] {line}")
+
+
 def add_stats_by_branch(qf, results, save=True):
     db = qf.db
     for branch_id, branch_stats in results.items():
@@ -738,28 +746,67 @@ def add_stats_by_branch(qf, results, save=True):
             print(f"Adding stats for branch {branch_id} {st} {len(stats)}")
             if save:
                 add_collection(db, 'statistics', stats, overwrite=True)
-        
 
-# compute stats and save to Firestoire collection
-def compute_statistics(qf, save=False, limit=None):
+
+def _compute_one_branch(qf, org_name, branch_name, loc):
+    """Compute stats for a single branch.  Returns (branch_id, stats_list)."""
+    tag = branch_name
+    _log(tag, "Computing stats...")
+    branch_stats = get_stats_of_location(qf, loc)
+    summary = summary_branch_stats(qf, loc, branch_stats)
+    branch_stats.append({
+        'statType': 'branch_summary',
+        'location': loc,
+        'data': summary
+    })
+    _log(tag, f"Done ({len(branch_stats)} stat docs)")
+    return loc['branchID'], branch_stats
+
+
+# compute stats and save to Firestore collection
+def compute_statistics(qf, save=False, limit=None, max_workers=1):
+    """Compute and optionally save statistics for all branches.
+
+    Parameters
+    ----------
+    max_workers : int
+        Number of branches to process in parallel.  Use 1 (default) for
+        sequential execution, which is easier to debug.
+    """
     qf.init_coral_taxon_map()
     results = {}
-    # get summaries for each branch in each org
+
+    # Collect all branches first so we can fan them out.
+    all_branches = []
     orgs = qf.get_orgs()
     for org in orgs:
         org_id = org[0]
+        org_name = org[1].get('name', org_id)
         branches = qf.get_branches(org_id)
+        print(f"Org: {org_name} ({len(branches)} branches)")
         for branch in branches:
+            branch_name = branch[1].get('name', branch[0])
             loc = {'orgID': org_id, 'branchID': branch[0]}
-            print(f"Getting stats for {org[1]['name']} {branch[1]['name']}")
-            branch_stats = get_stats_of_location(qf, loc)
-            summary = summary_branch_stats(qf, loc, branch_stats)
-            branch_stats.append({
-                'statType': 'branch_summary',
-                'location': loc,
-                'data': summary
-                })
-            results[branch[0]] = branch_stats
+            all_branches.append((org_name, branch_name, loc))
+
+    print(f"\nProcessing {len(all_branches)} branches "
+          f"with {max_workers} worker(s)\n")
+
+    def _process(item):
+        org_name, branch_name, loc = item
+        return _compute_one_branch(qf, org_name, branch_name, loc)
+
+    if max_workers <= 1:
+        for item in all_branches:
+            branch_id, branch_stats = _process(item)
+            results[branch_id] = branch_stats
+    else:
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {pool.submit(_process, item): item[1] for item in all_branches}
+            for future in as_completed(futures):
+                branch_id, branch_stats = future.result()
+                results[branch_id] = branch_stats
+
     # add aggregate stats to Firestore
     if save:
         add_stats_by_branch(qf, results)
@@ -768,13 +815,22 @@ def compute_statistics(qf, save=False, limit=None):
 
 # %%
 if __name__ == "__main__":
-    save = True
-    to_production = True
-    if to_production:
-        creds = 'restoration-ios-firebase-adminsdk-wg0a4-18ff398018.json'
-        project_id="restoration-ios"
-    else:
+    import argparse
+    parser = argparse.ArgumentParser(description="Compute and save statistics")
+    parser.add_argument("--save", action="store_true",
+                        help="Write stats to Firestore (default: compute only)")
+    parser.add_argument("--workers", type=int, default=1,
+                        help="Branches to process in parallel (default: 1)")
+    parser.add_argument("--dev", action="store_true",
+                        help="Use the dev database (default: production)")
+    args = parser.parse_args()
+
+    if args.dev:
         creds = "restoration-app---dev-6df41-firebase-adminsdk-fbsvc-fd29c504a1.json"
-        project_id="restoration-app---dev-6df41"
+        project_id = "restoration-app---dev-6df41"
+    else:
+        creds = 'restoration-ios-firebase-adminsdk-wg0a4-18ff398018.json'
+        project_id = "restoration-ios"
     qf = qq.QueryFirestore(project_id=project_id, creds=creds)
-    results = compute_statistics(qf, save=save, limit=None)
+    results = compute_statistics(qf, save=args.save, limit=None,
+                                 max_workers=args.workers)
