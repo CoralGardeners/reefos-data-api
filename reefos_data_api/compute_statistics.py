@@ -815,22 +815,16 @@ def compute_statistics(qf, save=False, limit=None, max_workers=1):
 
 # %%
 if __name__ == "__main__":
-    import argparse
-    parser = argparse.ArgumentParser(description="Compute and save statistics")
-    parser.add_argument("--save", action="store_true",
-                        help="Write stats to Firestore (default: compute only)")
-    parser.add_argument("--workers", type=int, default=1,
-                        help="Branches to process in parallel (default: 1)")
-    parser.add_argument("--dev", action="store_true",
-                        help="Use the dev database (default: production)")
-    args = parser.parse_args()
+    save = True
+    workers = 4
+    dev = False
 
-    if args.dev:
+    if dev:
         creds = "restoration-app---dev-6df41-firebase-adminsdk-fbsvc-fd29c504a1.json"
         project_id = "restoration-app---dev-6df41"
     else:
         creds = 'restoration-ios-firebase-adminsdk-wg0a4-18ff398018.json'
         project_id = "restoration-ios"
     qf = qq.QueryFirestore(project_id=project_id, creds=creds)
-    results = compute_statistics(qf, save=args.save, limit=None,
-                                 max_workers=args.workers)
+    results = compute_statistics(qf, save=save, limit=None,
+                                 max_workers=workers)

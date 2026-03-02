@@ -31,7 +31,6 @@ Usage:
     python scripts/update_stats.py --workers 4 --save
 """
 
-import argparse
 import datetime as dt
 import math
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -416,10 +415,6 @@ def update_statistics(save, max_workers=1):
 
 # %%
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Incremental statistics update")
-    parser.add_argument("--save", action="store_true",
-                        help="Write changes to Firestore (default: dry-run)")
-    parser.add_argument("--workers", type=int, default=1,
-                        help="Branches to process in parallel (default: 1)")
-    args = parser.parse_args()
-    update_statistics(save=args.save, max_workers=args.workers)
+    save = True
+    workers = 1
+    update_statistics(save=True, max_workers=workers)
