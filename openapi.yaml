@@ -1,0 +1,682 @@
+openapi: 3.0.3
+info:
+  title: Coral Gardeners Data API
+  description: REST API for coral restoration data — fragment tracking, nursery health, outplant statistics, and Reefcam sensor data.
+  version: 1.0.0
+  contact:
+    name: Coral Gardeners
+    email: rich@coralgardeners.org
+
+servers:
+  - url: https://dataapi.coralgardeners.org
+
+security:
+  - ApiKey: []
+
+components:
+  securitySchemes:
+    ApiKey:
+      type: apiKey
+      in: query
+      name: pwd
+
+  parameters:
+    OrgId:
+      name: org
+      in: query
+      required: true
+      schema:
+        type: string
+      description: Organization document ID
+    BranchId:
+      name: branch
+      in: query
+      required: true
+      schema:
+        type: string
+      description: Branch document ID
+    Details:
+      name: details
+      in: query
+      required: false
+      schema:
+        type: boolean
+        default: false
+      description: Include detailed breakdown in response
+
+  schemas:
+    SpeciesDiversity:
+      type: object
+      properties:
+        Species:
+          type: integer
+          description: Number of species
+        Species_Frac:
+          type: object
+          additionalProperties:
+            type: number
+          description: Fraction of fragments per taxon (genus species → fraction)
+        shannon_diversity_spp:
+          type: number
+          description: Shannon diversity index across species
+        Genera:
+          type: integer
+        Genus_Frac:
+          type: object
+          additionalProperties:
+            type: number
+        Colonies:
+          type: integer
+          description: Number of donor colonies
+        Mother_Colony_Frac:
+          type: object
+          additionalProperties:
+            type: number
+        shannon_diversity_mc:
+          type: number
+          description: Shannon diversity index across mother colonies
+
+    GlobalStats:
+      allOf:
+        - $ref: '#/components/schemas/SpeciesDiversity'
+        - type: object
+          properties:
+            Branches:
+              type: integer
+            Nurseries:
+              type: integer
+            Outplants:
+              type: integer
+            Fragments:
+              type: integer
+            Fraction Alive:
+              type: number
+              description: Weighted mean survival fraction
+            Outplanted:
+              type: integer
+              description: Total fragments outplanted
+
+    ByYearRecord:
+      type: object
+      properties:
+        year:
+          type: integer
+        branchID:
+          type: string
+        Branch:
+          type: string
+        seeded:
+          type: integer
+          description: Fragments seeded in this year
+        outplanted:
+          type: integer
+          description: Cumulative outplanted count through this year
+        n_species:
+          type: integer
+
+    BranchSummary:
+      type: object
+      description: Branch-level summary stats (schema varies; see branch_summary stat type)
+      additionalProperties: true
+
+    RestositeSummary:
+      type: object
+      description: Restoration site stats (schema varies; see restosite_stats stat type)
+      additionalProperties: true
+
+    NurseryStats:
+      type: object
+      properties:
+        nurseryID:
+          type: string
+        name:
+          type: string
+        lat:
+          type: number
+        lon:
+          type: number
+        age:
+          type: integer
+          description: Age in days since nursery creation
+        nurseryCreatedAt:
+          type: string
+          format: date-time
+        alive:
+          type: number
+          description: Fraction of fragments alive
+        bleach:
+          type: number
+          description: Fraction of fragments bleached
+        EVI:
+          type: number
+          description: Estimated Volume Index
+        health:
+          type: number
+      additionalProperties: true
+
+    FullNurseryStats:
+      type: object
+      properties:
+        summary:
+          $ref: '#/components/schemas/NurseryStats'
+        species_summary:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        structures:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        history:
+          type: object
+          description: Time-series monitoring data keyed by monitoredAt timestamp
+          additionalProperties: true
+        spp_history:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    OutplantStats:
+      type: object
+      properties:
+        outplantID:
+          type: string
+        name:
+          type: string
+        lat:
+          type: number
+        lon:
+          type: number
+        age:
+          type: integer
+          description: Age in days since outplant creation
+        outplantCreatedAt:
+          type: string
+          format: date-time
+        species_per_cell:
+          type: number
+        corals_per_cell:
+          type: number
+        monitoring:
+          type: array
+          items:
+            type: object
+            properties:
+              logID:
+                type: string
+              monitoredAt:
+                type: string
+              percentCoralCover:
+                type: number
+              percentBleach:
+                type: number
+              percentSurvival:
+                type: number
+        cells:
+          type: array
+          description: Per-cell stats (only present when details=true)
+          items:
+            type: object
+            additionalProperties: true
+        outplant_species:
+          type: array
+          description: Per-species breakdown (only present when details=true)
+          items:
+            type: object
+            additionalProperties: true
+      additionalProperties: true
+
+    DonorStats:
+      type: object
+      properties:
+        summary:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        details:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    Organization:
+      type: object
+      properties:
+        orgID:
+          type: string
+        name:
+          type: string
+      additionalProperties: true
+
+    ReefcamImageRecord:
+      type: object
+      description: Image metadata record from a Reefcam device
+      additionalProperties: true
+
+    ReefcamMeasurement:
+      type: object
+      description: Sensor measurement record
+      additionalProperties: true
+
+paths:
+  /data/orgs:
+    get:
+      summary: List all organizations
+      operationId: getOrgs
+      responses:
+        '200':
+          description: List of organizations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Organization'
+
+  /data/global:
+    get:
+      summary: Global overview for an organization
+      operationId: getGlobalStats
+      parameters:
+        - $ref: '#/components/parameters/OrgId'
+      responses:
+        '200':
+          description: Organization-level aggregated statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GlobalStats'
+
+  /data/byyear:
+    get:
+      summary: Annual seeding and outplanting stats by branch
+      operationId: getByYearStats
+      parameters:
+        - $ref: '#/components/parameters/OrgId'
+      responses:
+        '200':
+          description: List of annual records per branch
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ByYearRecord'
+
+  /data/branches:
+    get:
+      summary: Summary stats for all branches in an organization
+      operationId: getBranches
+      parameters:
+        - $ref: '#/components/parameters/OrgId'
+      responses:
+        '200':
+          description: List of branch summary dicts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BranchSummary'
+
+  /data/branch:
+    get:
+      summary: Overview of a single branch
+      operationId: getBranchStats
+      parameters:
+        - $ref: '#/components/parameters/BranchId'
+      responses:
+        '200':
+          description: Branch summary statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BranchSummary'
+
+  /data/restosites:
+    get:
+      summary: All restoration sites in a branch
+      operationId: getRestosites
+      parameters:
+        - $ref: '#/components/parameters/BranchId'
+      responses:
+        '200':
+          description: List of restoration site stats
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/RestositeSummary'
+
+  /data/restosite:
+    get:
+      summary: Overview of a single restoration site
+      operationId: getRestositeStats
+      parameters:
+        - name: restosite
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Restoration site document ID
+      responses:
+        '200':
+          description: Restoration site statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RestositeSummary'
+
+  /data/nursery:
+    get:
+      summary: Nursery statistics
+      operationId: getNurseryStats
+      parameters:
+        - name: nursery
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Nursery document ID
+        - $ref: '#/components/parameters/Details'
+      responses:
+        '200':
+          description: Nursery statistics. When details=true, returns full stats including history and per-structure data.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/NurseryStats'
+                  - $ref: '#/components/schemas/FullNurseryStats'
+
+  /data/outplant:
+    get:
+      summary: Outplant site statistics
+      operationId: getOutplantStats
+      parameters:
+        - name: outplant
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Outplant site document ID
+        - $ref: '#/components/parameters/Details'
+      responses:
+        '200':
+          description: Outplant statistics. When details=true, includes per-cell and per-species data.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutplantStats'
+
+  /data/mothercolonies:
+    get:
+      summary: Donor colony statistics for a branch
+      operationId: getDonorStats
+      parameters:
+        - $ref: '#/components/parameters/BranchId'
+        - $ref: '#/components/parameters/Details'
+      responses:
+        '200':
+          description: Donor colony summary and details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DonorStats'
+
+  /data/images:
+    get:
+      summary: Reefcam images
+      operationId: getImages
+      parameters:
+        - name: org
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Organization slug (e.g. coral-gardeners)
+        - name: device
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Device ID (e.g. reefos-01)
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+          description: Start date (YYYY-MM-DD)
+        - name: end
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+          description: End date (YYYY-MM-DD). If omitted, one day of data is returned.
+      responses:
+        '200':
+          description: List of image records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReefcamImageRecord'
+
+  /data/audio:
+    get:
+      summary: Reefcam audio recordings
+      operationId: getAudio
+      parameters:
+        - name: org
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: device
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of audio records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReefcamMeasurement'
+
+  /data/measurement/temperature:
+    get:
+      summary: Water temperature measurements
+      operationId: getTemperature
+      parameters:
+        - name: org
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: device
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of temperature measurement records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReefcamMeasurement'
+
+  /data/measurement/bioacoustics:
+    get:
+      summary: Bioacoustics measurements
+      operationId: getBioacoustics
+      parameters:
+        - name: org
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: device
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of bioacoustics measurement records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReefcamMeasurement'
+
+  /data/measurement/fishcommunity:
+    get:
+      summary: Fish community data
+      operationId: getFishCommunity
+      parameters:
+        - name: org
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: device
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of fish community records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReefcamMeasurement'
+
+  /data/measurement/fishdiversity:
+    get:
+      summary: Fish diversity data
+      operationId: getFishDiversity
+      parameters:
+        - name: org
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: device
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: start
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date
+        - name: end
+          in: query
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: List of fish diversity records
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ReefcamMeasurement'
+
+  /file:
+    get:
+      summary: Download a file from Cloud Storage
+      operationId: downloadFile
+      parameters:
+        - name: branch
+          in: query
+          required: true
+          schema:
+            type: string
+          description: Branch name (e.g. moorea)
+        - name: filename
+          in: query
+          required: true
+          schema:
+            type: string
+          description: File path within the branch's Cloud Storage bucket
+      responses:
+        '200':
+          description: File download
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary

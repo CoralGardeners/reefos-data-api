@@ -37,6 +37,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import reefos_data_api.compute_statistics as cs
 import reefos_data_api.query_firestore as qq
+from reefos_data_api.firestore_constants import StatType as st
 
 
 # ---------------------------------------------------------------------------
@@ -71,15 +72,15 @@ def _normalize_dict(d):
 # Stat types where statType + location is NOT unique.  These need
 # extra fields pulled from the data payload to form a unique key.
 _EXTRA_KEY_FIELDS = {
-    'bleachingNurseryMonitoring': ('logID', 'agg_type', 'taxon'),
-    'fullNurseryMonitoring':     ('logID', 'agg_type', 'taxon'),
-    'spp_nursery_stats':         ('organismID',),
-    'by_year':                   ('year', 'state'),
-    'outplant_species_stats':    ('organismID',),
-    'donor_summary_stats':       ('organismID',),
-    'donor_site_summary_stats':  ('organismID',),
-    'fragment_donor':            ('organismID',),
-    'outplant_fragment_donor':   ('organismID',),
+    st.bleaching_nursery_monitoring.value: ('logID', 'agg_type', 'taxon'),
+    st.full_nursery_monitoring.value:      ('logID', 'agg_type', 'taxon'),
+    st.spp_nursery_stats.value:            ('organismID',),
+    st.by_year.value:                      ('year', 'state'),
+    st.outplant_species_stats.value:       ('organismID',),
+    st.donor_summary_stats.value:          ('organismID',),
+    st.donor_site_summary_stats.value:     ('organismID',),
+    st.fragment_donor.value:               ('organismID',),
+    st.outplant_fragment_donor.value:      ('organismID',),
 }
 
 
@@ -273,7 +274,7 @@ def update_stats_for_branch(qf, org_id, branch_id, branch_name, save=False):
     branch_stats = cs.get_stats_of_location(qf, loc)
     summary = cs.summary_branch_stats(qf, loc, branch_stats)
     branch_stats.append({
-        'statType': 'branch_summary',
+        'statType': st.branch_summary.value,
         'location': loc,
         'data': summary
     })

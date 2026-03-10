@@ -225,6 +225,30 @@ class QueryFirestore:
         query = self.db.collection("_fragments")
         return self.add_location_filter(query, location)
 
+    def query_fragments_filtered(self, location, states=None, start_date=None, end_date=None):
+        query = self.db.collection("_fragments")
+        if states:
+            op = 'in' if isinstance(states, list) else '=='
+            query = query.where(filter=FieldFilter("state", op, states))
+        query = self.add_location_filter(query, location)
+        return self.add_date_filter(query, start_date, end_date)
+
+    def query_sites_filtered(self, location, site_types=None, start_date=None, end_date=None):
+        query = self.db.collection("_sites")
+        if site_types:
+            op = 'in' if isinstance(site_types, list) else '=='
+            query = query.where(filter=FieldFilter("siteType", op, site_types))
+        query = self.add_location_filter(query, location)
+        return self.add_date_filter(query, start_date, end_date)
+
+    def query_events_filtered(self, location, event_types=None, start_date=None, end_date=None):
+        query = self.db.collection("_events")
+        if event_types:
+            op = 'in' if isinstance(event_types, list) else '=='
+            query = query.where(filter=FieldFilter("eventType", op, event_types))
+        query = self.add_location_filter(query, location)
+        return self.add_date_filter(query, start_date, end_date)
+
     def query_location_fragments_in_nursery(self, loc, filter_fields={}):
         query = (self.db.collection("_fragments")
                  .where(filter=FieldFilter("state", "==", fs.in_nursery.value)))

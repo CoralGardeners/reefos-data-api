@@ -163,3 +163,5 @@ cython_debug/
 *.json
 # exclude package
 reefos_data_api.egg-info/
+.github/.DS_Store
+.DS_Store

@@ -5,6 +5,7 @@ import datetime as dt
 
 import reefos_data_api.query_firestore as qq
 from reefos_data_api.firestore_constants import EventType as et
+from reefos_data_api.firestore_constants import StatType as st
 
 
 fp = 'French Polynesia'
@@ -19,63 +20,241 @@ moorea_historic_data = [
 
 
 def api_help():
-    strs = [
-        "Hello data seeker",
-        "Coral Gardeners Data API Endpoints",
-        "",
-        "Get org list",
-        "dataapi.coralgardeners.org/data/orgs?pwd=showmethedata",
-        "",
-        "Get global overview",
-        "dataapi.coralgardeners.org/data/global?org=orgID&pwd=showmethedata",
-        "",
-        "Get by-year overview",
-        "dataapi.coralgardeners.org/data/byyear?org=orgID&pwd=showmethedata",
-        "",
-        "Get summary of all branches in an org",
-        "dataapi.coralgardeners.org/data/branches?org=orgID&pwd=showmethedata",
-        "",
-        "Get branch overview using branch ID",
-        "dataapi.coralgardeners.org/data/branch?branch=branchID&pwd=showmethedata",
-        "",
-        "Get restoration sites overview of all sites in branch ID",
-        "dataapi.coralgardeners.org/data/restosites?branch=branchID&pwd=showmethedata",
-        "",
-        "Get restoration site overview of restosite ID",
-        "dataapi.coralgardeners.org/data/restosite?restosite=restositeID&pwd=showmethedata",
-        "",
-        "Get nursery data using nursery ID. Add details=True to get monitoring details",
-        "dataapi.coralgardeners.org/data/nursery?nursery=nurseryID&pwd=showmethedata",
-        "",
-        "Get nursery data using branch and nursery name. Add details=True to get monitoring details",
-        "dataapi.coralgardeners.org/data/nursery?nursery=nurseryID&pwd=showmethedata",
-        "",
-        "Get outplant data using outplant ID. . Add details=True to get cell and species stats",
-        "dataapi.coralgardeners.org/data/outplant?outplant=outplantID&pwd=showmethedata",
-        "dataapi.coralgardeners.org/data/outplant?outplant=outplantID&details=True&pwd=showmethedata",
-        "",
-        "Get branch mothercolonies. Add details=True to get individual colony detils",
-        "dataapi.coralgardeners.org/data/mothercolonies?branch=branchID&pwd=showmethedata",
-        "dataapi.coralgardeners.org/data/mothercolonies?branch=branchID&detils=True&pwd=showmethedata",
-        "",
-        "Reefcam Data Endpoints",
-        "All use the parameters:",
-        "org=coral-gardeners&device=xxx&start=2023-12-1&end=2024-03-31&pwd=showmethedata",
-        "end is optional, if not given then one day of data is retrieved",
-        "dataapi.coralgardeners.org/data/images?org=coral-gardeners&device=reefos-01&start=02/21/2024&pwd=showmethedata",
-        "",
-        "dataapi.coralgardeners.org/data/images",
-        "dataapi.coralgardeners.org/data/audio",
-        "dataapi.coralgardeners.org/data/measurement/temperature",
-        "dataapi.coralgardeners.org/data/measurement/bioacoustics",
-        "dataapi.coralgardeners.org/data/measurement/fishcommunity",
-        "dataapi.coralgardeners.org/data/measurement/fishdiversity",
-        "",
-        "Get a file",
-        "dataapi.coralgardeners.org/file?branch=moorea&filename=filepath&pwd=showmethedata",
-        "",
-        ]
-    return json.dumps(strs)
+    help_data = {
+        "description": "Coral Gardeners Data API",
+        "base_url": "dataapi.coralgardeners.org",
+        "auth": "All endpoints require ?pwd=showmethedata",
+        "endpoints": {
+            "orgs": {
+                "description": "List all organizations",
+                "url": "/data/orgs?pwd=showmethedata",
+                "params": {},
+            },
+            "global": {
+                "description": "Global overview for an organization",
+                "url": "/data/global?org={orgID}&pwd=showmethedata",
+                "params": {"org": "Organization ID"},
+            },
+            "byyear": {
+                "description": "Annual seeding and outplanting stats by branch",
+                "url": "/data/byyear?org={orgID}&pwd=showmethedata",
+                "params": {"org": "Organization ID"},
+            },
+            "branches": {
+                "description": "Summary of all branches in an organization",
+                "url": "/data/branches?org={orgID}&pwd=showmethedata",
+                "params": {"org": "Organization ID"},
+            },
+            "branch": {
+                "description": "Overview of a single branch",
+                "url": "/data/branch?branch={branchID}&pwd=showmethedata",
+                "params": {"branch": "Branch ID"},
+            },
+            "restosites": {
+                "description": "All restoration sites in a branch",
+                "url": "/data/restosites?branch={branchID}&pwd=showmethedata",
+                "params": {"branch": "Branch ID"},
+            },
+            "restosite": {
+                "description": "Overview of a single restoration site",
+                "url": "/data/restosite?restosite={restositeID}&pwd=showmethedata",
+                "params": {"restosite": "Restoration site ID"},
+            },
+            "nursery": {
+                "description": "Nursery data. Add details=True for monitoring history",
+                "url": "/data/nursery?nursery={nurseryID}&pwd=showmethedata",
+                "params": {"nursery": "Nursery ID", "details": "True (optional)"},
+            },
+            "outplant": {
+                "description": "Outplant site data. Add details=True for cell and species breakdown",
+                "url": "/data/outplant?outplant={outplantID}&pwd=showmethedata",
+                "params": {"outplant": "Outplant site ID", "details": "True (optional)"},
+            },
+            "mothercolonies": {
+                "description": "Donor colony stats for a branch. Add details=True for per-colony data",
+                "url": "/data/mothercolonies?branch={branchID}&pwd=showmethedata",
+                "params": {"branch": "Branch ID", "details": "True (optional)"},
+            },
+            "reefcam": {
+                "description": "Reefcam data endpoints. end is optional; if omitted, one day of data is returned.",
+                "common_params": {
+                    "org": "Organization slug (e.g. coral-gardeners)",
+                    "device": "Device ID (e.g. reefos-01)",
+                    "start": "Start date (YYYY-MM-DD)",
+                    "end": "End date (YYYY-MM-DD, optional)",
+                    "pwd": "API password",
+                },
+                "urls": {
+                    "images": "/data/images",
+                    "audio": "/data/audio",
+                    "temperature": "/data/measurement/temperature",
+                    "bioacoustics": "/data/measurement/bioacoustics",
+                    "fishcommunity": "/data/measurement/fishcommunity",
+                    "fishdiversity": "/data/measurement/fishdiversity",
+                },
+            },
+            "file": {
+                "description": "Download a file from Cloud Storage",
+                "url": "/file?branch={branch}&filename={filepath}&pwd=showmethedata",
+                "params": {"branch": "Branch name (e.g. moorea)", "filename": "File path in storage"},
+            },
+            "object": {
+                "description": "Fetch a single document by collection name and ID. "
+                               "The leading underscore in the collection name is optional.",
+                "url": "/data/object?collection={collection}&id={doc_id}&pwd=showmethedata",
+                "params": {
+                    "collection": "Collection name (e.g. 'fragments' or '_fragments')",
+                    "id": "Document ID",
+                },
+            },
+            "fragments": {
+                "description": "Query the _fragments collection with optional filtering",
+                "url": "/data/fragments",
+                "params": {
+                    "org": "orgID (optional)",
+                    "branch": "branchID (optional)",
+                    "nursery": "nurseryID (optional)",
+                    "outplant": "outplantID (optional)",
+                    "state": "Fragment state or comma-separated list "
+                             "(inNursery | outplanted | refragmented | removed | completed | unknown)",
+                    "start": "Start date filter on metadata.createdAt (YYYY-MM-DD, optional)",
+                    "end": "End date filter on metadata.createdAt (YYYY-MM-DD, optional)",
+                    "pwd": "API password",
+                },
+            },
+            "sites": {
+                "description": "Query the _sites collection with optional filtering",
+                "url": "/data/sites",
+                "params": {
+                    "org": "orgID (optional)",
+                    "branch": "branchID (optional)",
+                    "type": "siteType or comma-separated list "
+                            "(branch | nursery | structure | restoSite | outplant | "
+                            "outplantCell | donorColony | control | surveySite | surveyCell | surveyPlot)",
+                    "start": "Start date filter on metadata.createdAt (YYYY-MM-DD, optional)",
+                    "end": "End date filter on metadata.createdAt (YYYY-MM-DD, optional)",
+                    "pwd": "API password",
+                },
+            },
+            "events": {
+                "description": "Query the _events collection with optional filtering",
+                "url": "/data/events",
+                "params": {
+                    "org": "orgID (optional)",
+                    "branch": "branchID (optional)",
+                    "nursery": "nurseryID (optional)",
+                    "outplant": "outplantID (optional)",
+                    "restosite": "restositeID (optional)",
+                    "type": "eventType or comma-separated list "
+                            "(fragmentCreation | fragmentMonitor | fragmentOutplantMonitor | "
+                            "fragmentMove | fragmentOutplant | fragmentRefragment | "
+                            "outplantCellMonitoring | visualSurvey | coralSurvey | fishSurvey | "
+                            "fullNurseryMonitoring | bleachingNurseryMonitoring | "
+                            "nurseryCleaning | nurseryPredatorSweep | donorColonyMonitoring)",
+                    "start": "Start date filter on metadata.createdAt (YYYY-MM-DD, optional)",
+                    "end": "End date filter on metadata.createdAt (YYYY-MM-DD, optional)",
+                    "pwd": "API password",
+                },
+            },
+        },
+        "database": {
+            "description": "Firestore database structure",
+            "collections": {
+                "_orgs": {
+                    "description": "Organizations",
+                    "fields": {"name": "string"},
+                },
+                "_sites": {
+                    "description": "All site types (polymorphic). Discriminated by siteType.",
+                    "common_fields": {
+                        "siteType": "string — branch | nursery | structure | restoSite | outplant | "
+                                    "outplantCell | donorColony | control | surveySite | surveyCell | surveyPlot",
+                        "name": "string",
+                        "location.orgID": "string",
+                        "location.branchID": "string",
+                        "location.nurseryID": "string (where applicable)",
+                        "location.restositeID": "string (where applicable)",
+                        "location.outplantID": "string (where applicable)",
+                        "geolocation.latitude": "number",
+                        "geolocation.longitude": "number",
+                        "metadata.createdAt": "datetime",
+                        "metadata.deleted": "boolean",
+                    },
+                    "hierarchy": "org → branch → nursery/restoSite/outplant → structure/outplantCell",
+                },
+                "_fragments": {
+                    "description": "Individual coral fragments tracked through their lifecycle",
+                    "fields": {
+                        "state": "string — inNursery | outplanted | refragmented | removed | completed | unknown",
+                        "organismID": "string — ref to _organisms",
+                        "donorID": "string — ref to _sites (donorColony)",
+                        "location.orgID": "string",
+                        "location.branchID": "string",
+                        "location.nurseryID": "string",
+                        "location.outplantID": "string",
+                        "location.outplantCellID": "string",
+                        "createdAt": "datetime",
+                        "completedAt": "datetime (optional)",
+                        "metadata.deleted": "boolean",
+                    },
+                },
+                "_events": {
+                    "description": "All operational events (polymorphic). Discriminated by eventType.",
+                    "fields": {
+                        "eventType": "string — see event_types below",
+                        "location": "object — same structure as _sites location",
+                        "eventData": "object — event-specific data",
+                        "metadata.createdAt": "datetime",
+                        "metadata.deleted": "boolean",
+                    },
+                    "event_types": {
+                        "fragment_lifecycle": [
+                            "fragmentCreation", "fragmentMonitor", "fragmentOutplantMonitor",
+                            "fragmentMove", "fragmentOutplant", "fragmentRefragment",
+                        ],
+                        "outplant": ["outplantCellMonitoring"],
+                        "survey": ["visualSurvey", "coralSurvey", "fishSurvey"],
+                        "nursery": [
+                            "fullNurseryMonitoring", "bleachingNurseryMonitoring",
+                            "nurseryCleaning", "nurseryPredatorSweep",
+                        ],
+                        "donor": ["donorColonyMonitoring"],
+                    },
+                },
+                "_organisms": {
+                    "description": "Coral species reference data",
+                    "fields": {
+                        "genus": "string",
+                        "species": "string",
+                        "organism_type": "string (e.g. coral)",
+                    },
+                },
+                "_statistics": {
+                    "description": "Pre-computed aggregated statistics for fast retrieval",
+                    "fields": {
+                        "statType": "string — see stat_types below",
+                        "location": "object — location context for this stat",
+                        "data": "object — aggregated data (schema varies by statType)",
+                        "metadata.createdAt": "datetime",
+                        "metadata.deleted": "boolean",
+                    },
+                    "stat_types": {
+                        "branch": ["branch_stats", "branch_summary"],
+                        "restosite": ["restosite_stats"],
+                        "nursery": ["nursery_stats", "structure_stats", "spp_nursery_stats",
+                                    "fullNurseryMonitoring", "bleachingNurseryMonitoring"],
+                        "outplant": ["outplant_stats", "outplantcell_stats", "outplant_species_stats",
+                                     "outplant_fragment_donor"],
+                        "donor": ["donor_summary_stats", "donor_details_stats",
+                                  "donor_site_summary_stats", "donor_nursery_details_stats"],
+                        "fragment": ["fragment_stats", "fragment_donor"],
+                        "annual": ["by_year"],
+                    },
+                },
+            },
+        },
+    }
+    return json.dumps(help_data)
 
 
 def _donor_stats_helper(stats_df, donor_df, data):
@@ -103,15 +282,16 @@ def _donor_stats_helper(stats_df, donor_df, data):
 
 def _get_fragment_species_stats(qf, location, data):
     # get species stats for fragments in this location
-    _stats = qf.get_docs(qf.query_statistics(location, 'fragment_donor'))
+    _stats = qf.get_docs(qf.query_statistics(location, st.fragment_donor.value))
     if len(_stats) > 0:
         stats_df = qf.documents_to_dataframe(_stats, ['data', 'location'])
-        donor_stats = qf.get_docs(qf.query_statistics(location, 'donor_nursery_details_stats'))
+        donor_stats = qf.get_docs(qf.query_statistics(location, st.donor_nursery_details_stats.value))
         donor_df = qf.documents_to_dataframe(donor_stats, ['data', 'location'])
         _donor_stats_helper(stats_df, donor_df, data)
 
 
 def get_orgs(qf):
+    """Return a list of all organizations, each as a dict with an added 'orgID' key."""
     orgs = qf.get_orgs()
     results = []
     for org in orgs:
@@ -122,6 +302,7 @@ def get_orgs(qf):
 
 
 def get_orgbyname(qf, name):
+    """Return the first organization matching the given name, or None if not found."""
     res = qf.get_org_by_name(name)
     if len(res) == 0:
         return None
@@ -129,17 +310,30 @@ def get_orgbyname(qf, name):
 
 
 def org_exists(qf, org_id):
+    """Return True if the given org_id exists in Firestore."""
     return org_id in qf.get_org_ids()
 
 
 def site_exists(qf, site_id):
+    """Return True if the given site_id exists in Firestore."""
     return qf.get_site_by_id(site_id) is not None
 
 
 def global_stats(qf, org_id):
+    """Return organization-level summary statistics.
+
+    Args:
+        qf: QueryFirestore instance
+        org_id: Organization document ID
+
+    Returns:
+        dict with keys: Branches, Nurseries, Outplants, Fragments, Fraction Alive,
+        Outplanted, Species, Species_Frac, Genera, Genus_Frac, Colonies,
+        Mother_Colony_Frac, shannon_diversity_spp, shannon_diversity_mc
+    """
     loc = {'orgID': org_id}
     # get stats for branches in this org
-    stats = qf.get_docs(qf.query_statistics(loc, 'branch_stats'))
+    stats = qf.get_docs(qf.query_statistics(loc, st.branch_stats.value))
     bdf = qf.documents_to_dataframe(stats, ['data', 'location'])
     # make the block of global data
     global_data = {
@@ -154,10 +348,22 @@ def global_stats(qf, org_id):
     return global_data
 
 
-def by_year_stats(qf, org_id):    
+def by_year_stats(qf, org_id):
+    """Return annual seeding and outplanting counts per branch.
+
+    For the French Polynesia branch, pre-database impact report data (2020–2023)
+    is merged in to provide a complete historical record.
+
+    Args:
+        qf: QueryFirestore instance
+        org_id: Organization document ID
+
+    Returns:
+        list of dicts with keys: year, branchID, Branch, seeded, outplanted (cumulative), n_species
+    """
     loc = {'orgID': org_id}
     # get the by year stats from FireStore
-    stats = qf.get_docs(qf.query_statistics(loc, 'by_year'))
+    stats = qf.get_docs(qf.query_statistics(loc, st.by_year.value))
     df = qf.documents_to_dataframe(stats, ['location', 'data'])
     # filter to keep data about seeding and outplanting
     df = df[df.state.isin(['created', 'outplanted'])][['year', 'branchID', 'count', 'state', 'n_species']]
@@ -214,14 +420,25 @@ def _restosite_stats_helper(qf, restosite_id, restosite_data, ddf=None, donor_df
 
 
 def get_nursery_monitoring_history(qf, nursery_id, agg_type='by_nursery'):
+    """Return a DataFrame of monitoring events for a nursery, sorted by date.
+
+    Args:
+        qf: QueryFirestore instance
+        nursery_id: Nursery document ID
+        agg_type: Aggregation level — 'by_nursery' (default) or 'by_L1' (per structure)
+
+    Returns:
+        DataFrame with columns including monitoredAt, bleach, EVI, alive, health, statType.
+        EVI/alive/health are null for bleachingNurseryMonitoring rows.
+    """
     loc = {'nurseryID': nursery_id}
-    monitoring_stats = qf.get_docs(qf.query_statistics(loc, ['fullNurseryMonitoring', 'bleachingNurseryMonitoring'],
+    monitoring_stats = qf.get_docs(qf.query_statistics(loc, [st.full_nursery_monitoring.value, st.bleaching_nursery_monitoring.value],
                                                        filter_fields={'data.agg_type': agg_type}
                                                        ))
     mdf = qf.documents_to_dataframe(monitoring_stats, ['data', 'location'])
     # set non-bleaching attributes in bleaching monitoring to nan as they are incomplete
     if len(mdf) > 0:
-        mdf.loc[mdf.statType == 'bleachingNurseryMonitoring', ['EVI', 'alive', 'health']] = None  # np.nan
+        mdf.loc[mdf.statType == st.bleaching_nursery_monitoring.value, ['EVI', 'alive', 'health']] = None  # np.nan
         mdf = mdf.sort_values('monitoredAt')
     return mdf
 
@@ -269,7 +486,18 @@ def _nursery_stats_helper(qf, nursery_id, nursery_data, ddf=None, donor_df=None)
 
 
 def nursery_stats(qf, nursery_id, nursery=None):
-    stats = qf.get_docs(qf.query_statistics({'nurseryID': nursery_id}, 'nursery_stats'))
+    """Return summary statistics for a single nursery.
+
+    Args:
+        qf: QueryFirestore instance
+        nursery_id: Nursery document ID
+        nursery: Pre-fetched nursery site document (optional, avoids a Firestore read)
+
+    Returns:
+        dict with nursery health metrics (alive, bleach, EVI, health), age in days,
+        location (lat/lon), species diversity, and recent monitoring trends.
+    """
+    stats = qf.get_docs(qf.query_statistics({'nurseryID': nursery_id}, st.nursery_stats.value))
     nursery_stats = qf.documents_to_dataframe(stats, ['data', 'location']).iloc[0].to_dict()
     nursery_stats['age'] = (dt.datetime.now(dt.timezone.utc) - nursery_stats['createdAt']).days
     return _nursery_stats_helper(qf, nursery_id, nursery_stats)
@@ -283,6 +511,16 @@ def get_nursery_history(qf, nursery_id):
 
 
 def get_outplant_monitoring_history(qf, outplant_id):
+    """Return a DataFrame of outplant cell monitoring events, sorted by date.
+
+    Args:
+        qf: QueryFirestore instance
+        outplant_id: Outplant site document ID
+
+    Returns:
+        DataFrame with columns including monitoredAt, outplantCellID, percentBleach,
+        percentCoralCover, percentSurvival.
+    """
     loc = {'outplantID': outplant_id}
     monitoring_events = qf.get_docs(qf.query_events(loc, {'eventType': et.outplant_cell_monitoring.value}))
     mdf = qf.documents_to_dataframe(monitoring_events, ['eventData', 'location'])
@@ -327,13 +565,26 @@ def _outplant_stats_helper(qf, outplant_id, outplant, op_stats, cdf, sdf, detail
 
 
 def outplant_stats(qf, outplant_id, outplant=None, details=False):
+    """Return statistics for a single outplant site.
+
+    Args:
+        qf: QueryFirestore instance
+        outplant_id: Outplant site document ID
+        outplant: Pre-fetched outplant site document (optional, avoids a Firestore read)
+        details: If True, include per-cell stats ('cells') and species breakdown ('outplant_species')
+
+    Returns:
+        dict with outplantID, name, lat, lon, fragment counts, age in days,
+        species_per_cell, corals_per_cell, monitoring history, and optionally
+        cells and outplant_species lists.
+    """
     loc = {'outplantID': outplant_id}
-    op_stats = qf.get_docs(qf.query_statistics(loc, 'outplant_stats'))
+    op_stats = qf.get_docs(qf.query_statistics(loc, st.outplant_stats.value))
     if len(op_stats) > 0:
         if details:
-            cell_stats = qf.get_docs(qf.query_statistics(loc, 'outplantcell_stats'))
+            cell_stats = qf.get_docs(qf.query_statistics(loc, st.outplantcell_stats.value))
             cdf = qf.documents_to_dataframe(cell_stats, ['data', 'location'])
-            spp_stats = qf.get_docs(qf.query_statistics(loc, 'outplant_species_stats'))
+            spp_stats = qf.get_docs(qf.query_statistics(loc, st.outplant_species_stats.value))
             sdf = qf.documents_to_dataframe(spp_stats, ['data', 'location'])
         else:
             cdf = pd.DataFrame()
@@ -347,6 +598,16 @@ def outplant_stats(qf, outplant_id, outplant=None, details=False):
 
 
 def control_stats(qf, control_id, control=None):
+    """Return statistics for a single control site.
+
+    Args:
+        qf: QueryFirestore instance
+        control_id: Control site document ID
+        control: Pre-fetched control site document (optional)
+
+    Returns:
+        dict with controlID, outplantID, reefod_id, name, lat, lon, perimeter, controlCreatedAt
+    """
     _control = control or qf.get_site_by_id(control_id)
     # make the block of global data
     control_data = {
@@ -363,6 +624,15 @@ def control_stats(qf, control_id, control=None):
 
 
 def all_control_stats(qf, loc):
+    """Return statistics for all control sites matching a location filter.
+
+    Args:
+        qf: QueryFirestore instance
+        loc: Location filter dict (e.g. {'branchID': '...'})
+
+    Returns:
+        list of control site stat dicts (see control_stats)
+    """
     results = []
     cids = qf.get_docs(qf.query_controlsites(loc))
     for cid, doc in cids:
@@ -371,26 +641,58 @@ def all_control_stats(qf, loc):
 
 
 def branch_stats(qf, loc):
+    """Return summary statistics for branches matching a location filter.
+
+    Args:
+        qf: QueryFirestore instance
+        loc: Location filter dict (e.g. {'orgID': '...'} or {'branchID': '...'})
+
+    Returns:
+        list of branch summary dicts
+    """
     # get stats for brach or org
-    stats = qf.get_docs(qf.query_statistics(loc, 'branch_summary'))
+    stats = qf.get_docs(qf.query_statistics(loc, st.branch_summary.value))
     return [stat[1]['data'] for stat in stats]
 
 
 def restosite_stats(qf, loc):
+    """Return statistics for restoration sites matching a location filter.
+
+    Args:
+        qf: QueryFirestore instance
+        loc: Location filter dict (e.g. {'branchID': '...'})
+
+    Returns:
+        list of restoration site stat dicts
+    """
     # get stats for brach or org
-    stats = qf.get_docs(qf.query_statistics(loc, 'restosite_stats'))
+    stats = qf.get_docs(qf.query_statistics(loc, st.restosite_stats.value))
     return [stat[1]['data'] for stat in stats]
 
 
 def full_nursery_stats(qf, nursery_id):
+    """Return comprehensive statistics for a nursery including history and species breakdown.
+
+    Args:
+        qf: QueryFirestore instance
+        nursery_id: Nursery document ID
+
+    Returns:
+        dict with keys:
+            summary: nursery_stats dict
+            species_summary: list of per-species stats (EVI, alive, health, taxon, etc.)
+            structures: list of per-structure (L1) stats
+            history: time-series monitoring dict keyed by monitoredAt timestamp
+            spp_history: list of per-species monitoring records over time
+    """
     keep = ['EVI_count', 'n_fragments', 'bleach', 'EVI', 'alive', 'health', 'nurseryID']
     history_keep = ['nurseryID', 'bleach', 'EVI', 'alive',
                     'health', 'statType', 'monitoring_name', 'monitoredAt']
 
     loc = {'nurseryID': nursery_id}
-    structure_stats = qf.get_docs(qf.query_statistics(loc, 'structure_stats'))
+    structure_stats = qf.get_docs(qf.query_statistics(loc, st.structure_stats.value))
     struct_df = qf.documents_to_dataframe(structure_stats, ['data', 'location'])
-    spp_nursery_stats = qf.get_docs(qf.query_statistics(loc, 'spp_nursery_stats'))
+    spp_nursery_stats = qf.get_docs(qf.query_statistics(loc, st.spp_nursery_stats.value))
     spp_df = qf.documents_to_dataframe(spp_nursery_stats, ['data', 'location'])
     stats = nursery_stats(qf, nursery_id)
     nursery_history, species_history = get_nursery_history(qf, nursery_id)
@@ -412,10 +714,22 @@ def full_nursery_stats(qf, nursery_id):
 
 
 def get_donor_stats(qf, branch_id, details=True):
+    """Return donor colony statistics for a branch.
+
+    Args:
+        qf: QueryFirestore instance
+        branch_id: Branch document ID
+        details: If True, include per-colony detail records (default True)
+
+    Returns:
+        dict with keys:
+            summary: list of summary stat dicts (species counts, genus fractions, etc.)
+            details: list of per-colony detail dicts
+    """
     loc = {'branchID': branch_id}
-    summary_stats = qf.get_docs(qf.query_statistics(loc, 'donor_summary_stats'))
+    summary_stats = qf.get_docs(qf.query_statistics(loc, st.donor_summary_stats.value))
     summary_df = qf.documents_to_dataframe(summary_stats, ['data', 'location'])
-    details_stats = qf.get_docs(qf.query_statistics(loc, 'donor_details_stats'))
+    details_stats = qf.get_docs(qf.query_statistics(loc, st.donor_details_stats.value))
     details_df = qf.documents_to_dataframe(details_stats, ['data', 'location'])
     all_stats = {
         'summary': summary_df.to_dict('records'),
@@ -425,12 +739,111 @@ def get_donor_stats(qf, branch_id, details=True):
 
 
 def nursery_fragment_stats(qf, nursery_id):
-    frag_stats = qf.get_docs(qf.query_statistics({'nurseryID': nursery_id}, 'fragment_stats'))
+    """Return individual fragment statistics for a nursery.
+
+    Args:
+        qf: QueryFirestore instance
+        nursery_id: Nursery document ID
+
+    Returns:
+        list of fragment stat dicts
+    """
+    frag_stats = qf.get_docs(qf.query_statistics({'nurseryID': nursery_id}, st.fragment_stats.value))
     frags_df = qf.documents_to_dataframe(frag_stats, [])
     return frags_df.to_dict('records')
 
 
+_VALID_COLLECTIONS = frozenset({'fragments', 'sites', 'events', 'statistics', 'organisms', 'orgs'})
+
+
+def get_object(qf, collection, doc_id):
+    """Fetch a single document from any collection by ID.
+
+    The leading underscore in the collection name is optional:
+    'fragments' and '_fragments' are equivalent.
+
+    Args:
+        qf: QueryFirestore instance
+        collection: Collection name (e.g. 'fragments' or '_fragments')
+        doc_id: Document ID
+
+    Returns:
+        dict of document fields, or None if not found
+    """
+    if not collection.startswith('_'):
+        collection = '_' + collection
+    return qf.get_document(collection, doc_id)
+
+
+def get_fragments(qf, location, states=None, start_date=None, end_date=None):
+    """Query the _fragments collection with optional filters.
+
+    Args:
+        qf: QueryFirestore instance
+        location: dict of location fields to filter on (e.g. {'orgID': ..., 'branchID': ...})
+        states: fragment state string or list of states
+                (e.g. 'inNursery' or ['inNursery', 'outplanted'])
+        start_date: inclusive lower bound on metadata.createdAt (datetime)
+        end_date: exclusive upper bound on metadata.createdAt (datetime)
+
+    Returns:
+        list of dicts, each containing all document fields plus 'doc_id'
+    """
+    query = qf.query_fragments_filtered(location, states=states,
+                                        start_date=start_date, end_date=end_date)
+    docs = qf.get_docs(query)
+    return [{'doc_id': doc_id, **doc} for doc_id, doc in docs]
+
+
+def get_sites(qf, location, site_types=None, start_date=None, end_date=None):
+    """Query the _sites collection with optional filters.
+
+    Args:
+        qf: QueryFirestore instance
+        location: dict of location fields to filter on (e.g. {'orgID': ..., 'branchID': ...})
+        site_types: siteType string or list of siteTypes
+                    (e.g. 'nursery' or ['nursery', 'outplant'])
+        start_date: inclusive lower bound on metadata.createdAt (datetime)
+        end_date: exclusive upper bound on metadata.createdAt (datetime)
+
+    Returns:
+        list of dicts, each containing all document fields plus 'doc_id'
+    """
+    query = qf.query_sites_filtered(location, site_types=site_types,
+                                    start_date=start_date, end_date=end_date)
+    docs = qf.get_docs(query)
+    return [{'doc_id': doc_id, **doc} for doc_id, doc in docs]
+
+
+def get_events(qf, location, event_types=None, start_date=None, end_date=None):
+    """Query the _events collection with optional filters.
+
+    Args:
+        qf: QueryFirestore instance
+        location: dict of location fields to filter on (e.g. {'orgID': ..., 'branchID': ...})
+        event_types: eventType string or list of eventTypes
+                     (e.g. 'fragmentMonitor' or ['fragmentMonitor', 'fragmentCreation'])
+        start_date: inclusive lower bound on metadata.createdAt (datetime)
+        end_date: exclusive upper bound on metadata.createdAt (datetime)
+
+    Returns:
+        list of dicts, each containing all document fields plus 'doc_id'
+    """
+    query = qf.query_events_filtered(location, event_types=event_types,
+                                     start_date=start_date, end_date=end_date)
+    docs = qf.get_docs(query)
+    return [{'doc_id': doc_id, **doc} for doc_id, doc in docs]
+
+
 def download_firestore_file(qf, org, branch, blobname):
+    """Download a file from Cloud Storage to the current directory.
+
+    Args:
+        qf: QueryFirestore instance
+        org: Organization slug (e.g. 'coral-gardeners')
+        branch: Branch name (e.g. 'moorea')
+        blobname: Full path of the file in Cloud Storage
+    """
     parts = blobname.split('/')
     fname = parts[-1]
     qf.download_blob(org, branch, blobname, fname)

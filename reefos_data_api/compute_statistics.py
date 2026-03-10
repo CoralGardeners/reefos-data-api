@@ -10,6 +10,7 @@ import reefos_data_api.query_firestore as qq
 import reefos_data_api.endpoints as ep
 from reefos_data_api.firestore_constants import EventType as et
 from reefos_data_api.firestore_constants import FragmentState as fs
+from reefos_data_api.firestore_constants import StatType as st
 # %%
 # get the event data of an org
 
@@ -189,7 +190,7 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     frag_df['genus'] = taxa.str.split().str[0]
     frag_df['species'] = taxa.str.split().str[1]
     frag_df['measuredAt'] = frag_df.fragmentID.map(latest_times)
-    fragment_stats = make_into_stats_list(frag_df, cols, 'fragment_stats')
+    fragment_stats = make_into_stats_list(frag_df, cols, st.fragment_stats.value)
     del latest['images']
 
     branch_stats = loc.copy()
@@ -201,7 +202,7 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     branch_stats['ytd_seeded'] = len(ytd_df)
     branch_stats['ytd_outplanted'] = (opfdf.completedAt.dt.year == year).sum() if len(opfdf) > 0 else 0
     branch_stats['createdAt'] = edf.createdAt.max()
-    branch_stats = make_into_stats_list(pd.DataFrame([branch_stats]), ['orgID', 'branchID'], 'branch_stats')
+    branch_stats = make_into_stats_list(pd.DataFrame([branch_stats]), ['orgID', 'branchID'], st.branch_stats.value)
 
     # get stats by restosite
     restosite_stats = [ldf.groupby('restositeID')[attr]
@@ -217,7 +218,7 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     restosite_stats['ytd_seeded'] = ytd_df.groupby(['restositeID'])['doc_id'].count()
     restosite_stats['ytd_seeded'] = restosite_stats['ytd_seeded'].fillna(0)
     restosite_stats = restosite_stats.reset_index()
-    restosite_stats = make_into_stats_list(restosite_stats, ['orgID', 'branchID', 'restositeID'], 'restosite_stats')
+    restosite_stats = make_into_stats_list(restosite_stats, ['orgID', 'branchID', 'restositeID'], st.restosite_stats.value)
 
     # get stats by nursery
     nursery_stats = [ldf.groupby('nurseryID')[attr]
@@ -233,7 +234,7 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     nursery_stats['ytd_seeded'] = ytd_df.groupby(['nurseryID'])['doc_id'].count()
     nursery_stats['ytd_seeded'] = nursery_stats['ytd_seeded'].fillna(0)
     nursery_stats = nursery_stats.reset_index()
-    nursery_stats = make_into_stats_list(nursery_stats, ['orgID', 'branchID', 'nurseryID'], 'nursery_stats')
+    nursery_stats = make_into_stats_list(nursery_stats, ['orgID', 'branchID', 'nurseryID'], st.nursery_stats.value)
 
     # get stats by structure
     structure_stats = [ldf.groupby(['nurseryID', 'structureID'])[attr]
@@ -248,7 +249,7 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     structure_stats['createdAt'] = edf.createdAt.max()
     structure_stats = make_into_stats_list(structure_stats,
                                            ['orgID', 'branchID', 'nurseryID', 'structureID'],
-                                           'structure_stats')
+                                           st.structure_stats.value)
 
     # get stats by species and nursery
     spp_nursery_stats = [ldf.groupby(['nurseryID', 'organismID'])[attr]
@@ -264,7 +265,7 @@ def get_current_stats(qf, loc, edf, frags, outplanted):
     spp_nursery_stats['taxon'] = spp_nursery_stats.organismID.map(qf.coral_taxon_map)
     spp_nursery_stats = make_into_stats_list(spp_nursery_stats,
                                              ['orgID', 'branchID', 'nurseryID'],
-                                             'spp_nursery_stats')
+                                             st.spp_nursery_stats.value)
 
     all_stats = branch_stats.copy()
     all_stats.extend(restosite_stats)
@@ -298,12 +299,12 @@ def get_donor_stats(qf, location, frags):
         nursery_details = nursery_details.merge(donors_df, on=['orgID', 'branchID', 'restositeID', 'donorID']
                                                 ).drop(columns=['metadata', 'siteType'])
         details = details.merge(donors_df, on=['orgID', 'branchID', 'restositeID', 'donorID']).drop(columns=['metadata', 'siteType'])
-        summary_list = make_into_stats_list(summary, ['orgID', 'branchID'], 'donor_summary_stats')
-        site_summary_list = make_into_stats_list(site_summary, ['orgID', 'branchID', 'restositeID'], 'donor_site_summary_stats')
+        summary_list = make_into_stats_list(summary, ['orgID', 'branchID'], st.donor_summary_stats.value)
+        site_summary_list = make_into_stats_list(site_summary, ['orgID', 'branchID', 'restositeID'], st.donor_site_summary_stats.value)
         nursery_details_list = make_into_stats_list(nursery_details,
                                                     ['orgID', 'branchID', 'restositeID', 'nurseryID', 'donorID'],
-                                                    'donor_nursery_details_stats')
-        details_list = make_into_stats_list(details, ['orgID', 'branchID', 'restositeID', 'donorID'], 'donor_details_stats')
+                                                    st.donor_nursery_details_stats.value)
+        details_list = make_into_stats_list(details, ['orgID', 'branchID', 'restositeID', 'donorID'], st.donor_details_stats.value)
         return summary_list + site_summary_list + details_list + nursery_details_list
     return []
 
@@ -323,7 +324,7 @@ def get_outplanted_stats(qf, loc, outplanted):
         ytd_df = fdf[fdf.completedAt.dt.year == year]
         op_stats['ytd_outplanted'] = ytd_df.groupby(['outplantID'])['doc_id'].count()
         op_stats['ytd_outplanted'] = op_stats['ytd_outplanted'].fillna(0)
-        op_stats = make_into_stats_list(op_stats, ['orgID', 'branchID', 'outplantID'], 'outplant_stats')
+        op_stats = make_into_stats_list(op_stats, ['orgID', 'branchID', 'outplantID'], st.outplant_stats.value)
         # aggregate by outplant and cell and compute stats
         grps = fdf.groupby(loc_attrs + ['outplantID', 'outplantCellID'])
         cell_stats = grps.agg(n_species=('organismID', 'nunique'),
@@ -331,7 +332,7 @@ def get_outplanted_stats(qf, loc, outplanted):
                               n_outplanted=('doc_id', 'count')).reset_index()
         cell_stats = make_into_stats_list(cell_stats,
                                           loc_attrs + ['outplantID', 'outplantCellID'],
-                                          'outplantcell_stats')
+                                          st.outplantcell_stats.value)
         # aggregate by outplant and species and compute stats
         grps = fdf.groupby(loc_attrs + ['outplantID', 'organismID'])
         species_stats = grps.agg(n_mothercolonies=('donorID', 'nunique'),
@@ -339,7 +340,7 @@ def get_outplanted_stats(qf, loc, outplanted):
         species_stats['taxon'] = species_stats.organismID.map(qf.coral_taxon_map)
         species_stats = make_into_stats_list(species_stats,
                                              loc_attrs + ['outplantID'],
-                                             'outplant_species_stats')
+                                             st.outplant_species_stats.value)
         return op_stats + cell_stats + species_stats
     return []
 
@@ -362,7 +363,7 @@ def get_stats_by_year(loc, edf, frags):
     df = pd.concat([created_by_year, completed_by_year])
     for id_name, id_val in loc.items():
         df[id_name] = id_val
-    return make_into_stats_list(df, list(loc.keys()), 'by_year')
+    return make_into_stats_list(df, list(loc.keys()), st.by_year.value)
 
 
 # get species counts by nursery or outplant
@@ -402,7 +403,7 @@ def get_stats_of_location(qf, loc):
     in_nursery_frags = [(nid, info) for (nid, info) in frags if info['state'] == fs.in_nursery.value]
     outplanted_frags = [(nid, info) for (nid, info) in frags if info['state'] == fs.outplanted.value]
     agg_df, events_df = get_location_monitoring_event_info(qf, loc, frags)
-    all_stats = make_into_stats_list(agg_df, loc_attrs + ['restositeID', 'nurseryID', 'structureID'], 'monitoring_time_series_stats')
+    all_stats = make_into_stats_list(agg_df, loc_attrs + ['restositeID', 'nurseryID', 'structureID'], st.monitoring_time_series_stats.value)
     if len(events_df) > 0:
         current_stats = get_current_stats(qf, loc, events_df, in_nursery_frags, outplanted_frags)
         all_stats.extend(current_stats)
@@ -410,9 +411,9 @@ def get_stats_of_location(qf, loc):
         all_stats.extend(by_year_stats)
     op_stats = get_outplanted_stats(qf, loc, outplanted_frags)
     all_stats.extend(op_stats)
-    frag_stats = get_fragment_stats(qf, loc, in_nursery_frags, ['restositeID', 'nurseryID'], 'fragment_donor')
+    frag_stats = get_fragment_stats(qf, loc, in_nursery_frags, ['restositeID', 'nurseryID'], st.fragment_donor.value)
     all_stats.extend(frag_stats)
-    op_frag_stats = get_fragment_stats(qf, loc, outplanted_frags, ['restositeID', 'outplantID'], 'outplant_fragment_donor')
+    op_frag_stats = get_fragment_stats(qf, loc, outplanted_frags, ['restositeID', 'outplantID'], st.outplant_fragment_donor.value)
     all_stats.extend(op_frag_stats)
     donor_stats = get_donor_stats(qf, loc, in_nursery_frags)
     all_stats.extend(donor_stats)
@@ -483,11 +484,11 @@ def control_stats(qf, control_id, control=None):
 
 def all_restosite_stats(qf, stats_df, loc):
     results = []
-    df = stats_df[stats_df.statType == 'restosite_stats'].dropna(axis=1, how='all')
+    df = stats_df[stats_df.statType == st.restosite_stats.value].dropna(axis=1, how='all')
     if len(df) > 0:
-        ddf = stats_df[stats_df.statType == 'fragment_donor']
+        ddf = stats_df[stats_df.statType == st.fragment_donor.value]
         ddf = ddf.dropna(subset='restositeID', axis=0).dropna(axis=1, how='all')
-        donor_df = stats_df[stats_df.statType == 'donor_site_summary_stats']
+        donor_df = stats_df[stats_df.statType == st.donor_site_summary_stats.value]
         donor_df = donor_df.dropna(subset='restositeID', axis=0).dropna(axis=1, how='all')
         donor_df['taxon'] = donor_df.organismID.map(qf.coral_taxon_map)
         for sid, stats in df.set_index('restositeID').iterrows():
@@ -520,7 +521,7 @@ def all_restosite_stats(qf, stats_df, loc):
                 'Mother_Colony_Frac': 0,
                 'age': 0,
                 "restositeCreatedAt": restosite['metadata']['createdAt'],
-                'statType': 'restosite_stats',
+                'statType': st.restosite_stats.value,
                 }
             results.append(restosite_data)
     return results
@@ -528,11 +529,11 @@ def all_restosite_stats(qf, stats_df, loc):
 
 def all_nursery_stats(qf, stats_df, loc):
     results = []
-    df = stats_df[stats_df.statType == 'nursery_stats'].dropna(axis=1, how='all')
+    df = stats_df[stats_df.statType == st.nursery_stats.value].dropna(axis=1, how='all')
     if len(df) > 0:
-        ddf = stats_df[stats_df.statType == 'fragment_donor']
+        ddf = stats_df[stats_df.statType == st.fragment_donor.value]
         ddf = ddf.dropna(subset='nurseryID', axis=0).dropna(axis=1, how='all')
-        donor_df = stats_df[stats_df.statType == 'donor_nursery_details_stats']
+        donor_df = stats_df[stats_df.statType == st.donor_nursery_details_stats.value]
         donor_df = donor_df.dropna(subset='nurseryID', axis=0).dropna(axis=1, how='all')
         for nid, stats in df.set_index('nurseryID').iterrows():
             nddf = ddf[ddf.nurseryID == nid].copy()
@@ -562,7 +563,7 @@ def all_nursery_stats(qf, stats_df, loc):
                 'Mother_Colony_Frac': 0,
                 'age': 0,
                 "nurseryCreatedAt": nursery['metadata']['createdAt'],
-                'statType': 'nursery_stats',
+                'statType': st.nursery_stats.value,
                 }
             results.append(nursery_data)
     return results
@@ -572,9 +573,9 @@ def all_outplant_stats(qf, stats_df, loc):
     results = []
     oids = qf.get_docs(qf.query_outplantsites(loc))
     oids = {val[0]: val[1] for val in oids}
-    op_df = stats_df[stats_df.statType == 'outplant_stats'].dropna(axis=1, how='all')
+    op_df = stats_df[stats_df.statType == st.outplant_stats.value].dropna(axis=1, how='all')
     if len(op_df) > 0:
-        cdf = stats_df[stats_df.statType == 'outplantcell_stats'].dropna(axis=1, how='all')
+        cdf = stats_df[stats_df.statType == st.outplantcell_stats.value].dropna(axis=1, how='all')
         # sdf = stats_df[stats_df.statType == 'outplant_species_stats'].dropna(axis=1, how='all')
         for oid, op_stat in op_df.set_index('outplantID').iterrows():
             op_cdf = cdf[cdf.outplantID == oid]
@@ -597,7 +598,7 @@ def all_outplant_stats(qf, stats_df, loc):
                 "n_cells": 0,
                 "ytd_outplanted": 0,
                 "species": 0,
-                'statType': 'outplant_stats',
+                'statType': st.outplant_stats.value,
                 'mother_colonies': 0,
                 'fragments': 0,
                 "species_per_cell": 0,
@@ -610,10 +611,10 @@ def all_outplant_stats(qf, stats_df, loc):
 
 def _get_fragment_species_stats(qf, loc, stats_df, data):
     # get species stats for fragments in this branch
-    fdf = stats_df[stats_df.statType == 'fragment_donor']
+    fdf = stats_df[stats_df.statType == st.fragment_donor.value]
     fdf = fdf.dropna(subset='nurseryID', axis=0).dropna(axis=1, how='all')
     if len(fdf) > 0:
-        donor_df = stats_df[stats_df.statType == 'donor_nursery_details_stats'].copy()
+        donor_df = stats_df[stats_df.statType == st.donor_nursery_details_stats.value].copy()
         ep._donor_stats_helper(fdf, donor_df, data)
 
 
@@ -651,7 +652,7 @@ def summary_branch_stats(qf, loc, branch_stats):
     restosites = qf.get_docs(qf.query_restosites(loc))
     stats = [(idx, doc) for idx, doc in enumerate(branch_stats)]
     stats_df = qf.documents_to_dataframe(stats, ['data', 'location'])
-    bdf = stats_df[stats_df.statType == 'branch_stats'].dropna(axis=1, how='all')
+    bdf = stats_df[stats_df.statType == st.branch_stats.value].dropna(axis=1, how='all')
     if _branch['name'] == fp:
         op_offset = fp_pre_database['outplanted']
         #seeded_offset = fp_pre_database['seeded']
@@ -755,7 +756,7 @@ def _compute_one_branch(qf, org_name, branch_name, loc):
     branch_stats = get_stats_of_location(qf, loc)
     summary = summary_branch_stats(qf, loc, branch_stats)
     branch_stats.append({
-        'statType': 'branch_summary',
+        'statType': st.branch_summary.value,
         'location': loc,
         'data': summary
     })
