@@ -39,7 +39,6 @@ import reefos_data_api.compute_statistics as cs
 import reefos_data_api.query_firestore as qq
 from reefos_data_api.firestore_constants import StatType as st
 
-
 # ---------------------------------------------------------------------------
 # Canonical key generation
 # ---------------------------------------------------------------------------
@@ -284,8 +283,8 @@ def update_stats_for_branch(qf, org_id, branch_id, branch_name, save=False):
     # the corresponding existing docs from Firestore.
     new_by_type = {}
     for stat in branch_stats:
-        st = stat['statType']
-        new_by_type.setdefault(st, []).append(stat)
+        stat_type = stat['statType']
+        new_by_type.setdefault(stat_type, []).append(stat)
 
     # --- Step 3: Load existing stats and diff per statType ---
     totals = {'added': 0, 'updated': 0, 'deleted': 0, 'unchanged': 0}
@@ -416,6 +415,6 @@ def update_statistics(save, max_workers=1):
 
 # %%
 if __name__ == "__main__":
-    save = True
+    save = False
     workers = 1
     update_statistics(save=True, max_workers=workers)

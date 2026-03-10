@@ -534,6 +534,7 @@ def _outplant_stats_helper(qf, outplant_id, outplant, op_stats, cdf, sdf, detail
     _outplant = outplant or qf.get_site_by_id(outplant_id)
     # make the block of outplant data
     n_cells = len(cdf)
+    del op_stats['doc_id']
     outplant_data = {
         "outplantID": outplant_id,
         "name": _outplant['name'],

@@ -103,6 +103,9 @@ def aggregate_monitorings(qf, id_attrs, events, logs, fragids):
     agg_df['monitoring_name'] = agg_df.logID.map(log_df.set_index('logID')['name'])
     agg_df['statType'] = agg_df.logID.map(log_df.set_index('logID')['eventType'])
 
+    # in case there are logs in frag monitor events that were deleted
+    agg_df.dropna(subset='statType')
+
     return agg_df, events_df
 
 
@@ -787,6 +790,8 @@ def compute_statistics(qf, save=False, limit=None, max_workers=1):
         print(f"Org: {org_name} ({len(branches)} branches)")
         for branch in branches:
             branch_name = branch[1].get('name', branch[0])
+            #if not save and branch_name != "French Polynesia":
+            #    continue
             loc = {'orgID': org_id, 'branchID': branch[0]}
             all_branches.append((org_name, branch_name, loc))
 

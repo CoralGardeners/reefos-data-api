@@ -61,6 +61,9 @@ Cleanup mode (--cleanup --save):
        null: look up the outplant site via outplantID and copy its
        restositeID to the fragment
     7. Delete donor colonies never referenced by any fragment's donorID
+    8. Mark frag_monitor events as deleted (metadata.deleted=True) when
+       their eventData.logID references a monitoring log that is itself
+       marked deleted
 
 Exit code: 0 if all checks pass, 1 if any fail.
 
@@ -451,7 +454,7 @@ def check_fragments(report, qf, branch_id,
 
 def check_events(report, qf, branch_id,
                   nursery_ids, outplant_ids, fragment_ids,
-                  monitoring_event_ids, events, cleanup):
+                  monitoring_event_ids, deleted_monitoring_ids, events, cleanup):
     report.section("Event references")
 
     valid_event_types = {e.value for e in EventType}
@@ -485,6 +488,7 @@ def check_events(report, qf, branch_id,
     bad_fragment = set()
     bad_log = set()
     bad_event_type = set()
+    bad_frag_monitor_deleted_log = set()
 
     for eid, doc in events:
         nid = loc_field(doc, 'nurseryID')
@@ -527,6 +531,11 @@ def check_events(report, qf, branch_id,
             bad_event_type.add(eid)
         if etype == EventType.frag_monitor.value and log_id and log_id not in monitoring_event_ids:
             bad_log.add(eid)
+        if etype == EventType.frag_monitor.value and log_id and log_id in deleted_monitoring_ids:
+            bad_frag_monitor_deleted_log.add(eid)
+            if cleanup:
+                cleanup.update('_events', eid, 'metadata.deleted', True,
+                               "frag_monitor references deleted monitoring log")
 
     n = len(events)
     report.check("event.nurseryID -> nursery", n, bad_nursery)
@@ -534,6 +543,7 @@ def check_events(report, qf, branch_id,
     report.check("event.eventType is valid", n, bad_event_type)
     report.check("fragment event.fragmentID -> fragment", n, bad_fragment)
     report.check("frag_monitor.logID -> monitoring event", n, bad_log)
+    report.check("frag_monitor not deleted when log is deleted", n, bad_frag_monitor_deleted_log)
 
 
 def check_coverage(report, nursery_ids, structure_ids, donor_colony_ids,
@@ -630,8 +640,18 @@ def run_checks(qf, do_cleanup=False):
                                  if e[1].get('eventType') in monitoring_types]
             monitoring_event_ids = ids_of(monitoring_events)
 
+            # Build set of deleted monitoring log IDs (including deleted docs,
+            # which are excluded from the main `events` list).
+            all_events = qf.get_docs_all(qf.query_events(loc))
+            deleted_monitoring_ids = {
+                eid for eid, doc in all_events
+                if doc.get('eventType') in monitoring_types
+                and (doc.get('metadata') or {}).get('deleted') == True
+            }
+
             print(f"  {len(fragments)} fragments, {len(events)} events, "
-                  f"{len(monitoring_event_ids)} monitoring logs")
+                  f"{len(monitoring_event_ids)} monitoring logs, "
+                  f"{len(deleted_monitoring_ids)} deleted monitoring logs")
 
             # Run checks
             check_site_hierarchy(report, branch_id,
@@ -645,7 +665,7 @@ def run_checks(qf, do_cleanup=False):
 
             check_events(report, qf, branch_id,
                          nursery_ids, outplant_ids, fragment_ids,
-                         monitoring_event_ids, events, cleanup)
+                         monitoring_event_ids, deleted_monitoring_ids, events, cleanup)
 
             check_coverage(report, nursery_ids, structure_ids,
                            donor_colony_ids, fragments, cleanup)
